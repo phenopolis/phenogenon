@@ -9,6 +9,7 @@ import errno
 import sys
 import sqlite3
 import re
+import itertools
 
 '''
 constants
@@ -102,6 +103,27 @@ def replace_hpo(hpo_db, hpo):
         return [new['id'][0], new['name'][0]]
     else:
         return hpo
+
+'''
+get all ancestor nodes of a given hpo_id.
+'''
+def get_hpo_ancestors(hpo_db, hpo_id):
+    """
+    Get HPO terms higher up in the hierarchy.
+    """
+    h=hpo_db.hpo.find_one({'id':hpo_id})
+    #print(hpo_id,h)
+    if 'replaced_by' in h:
+        # not primary id, replace with primary id and try again
+        h = hpo_db.hpo.find_one({'id':h['replaced_by'][0]})
+    hpo=[h]
+    if 'is_a' not in h: return hpo
+    for hpo_parent_id in h['is_a']:
+        #p=hpo_db.hpo.find({'id':hpo_parent_id}):
+        hpo+=list(itertools.chain(get_hpo_ancestors(hpo_db,hpo_parent_id))) 
+    #remove duplicates
+    hpo={h['id'][0]:h for h in hpo}.values()
+    return hpo
 
 '''
 translate gene_names to ensembl ids. db = dbs['phenopolis_db']
