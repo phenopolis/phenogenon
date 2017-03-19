@@ -2,6 +2,4 @@
 *test.py
 *swp
 output/*
-data/UCL-exome_unrelated.txt
-data/patients_hpo_snapshot_*.tsv
-data/hpo_freq_*.json
+data/private/*

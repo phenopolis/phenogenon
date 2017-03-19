@@ -126,6 +126,29 @@ def get_hpo_ancestors(hpo_db, hpo_id):
     return hpo
 
 '''
+minimise a list of hpos
+'''
+def hpo_minimum_set(hpo_db, hpo_ids=[]):
+    '''
+    minimize the hpo sets
+    results = {'HP:0000505': [ancestors]}
+    '''
+    hpo_ids = list(set(hpo_ids))
+    results = dict([(hpo_id, [ h['id'][0] for h in get_hpo_ancestors(hpo_db, hpo_id)],) for hpo_id in hpo_ids])
+    # minimise
+    bad_ids = []
+    for i in range(len(hpo_ids)):
+        for j in range(i+1,len(hpo_ids)):
+            if hpo_ids[i] in results[hpo_ids[j]]:
+                # i is j's ancestor, remove
+                bad_ids.append(hpo_ids[i])
+                break
+            if hpo_ids[j] in results[hpo_ids[i]]:
+                # j is i's ancestor, remove
+                bad_ids.append(hpo_ids[j])
+    return list(set(hpo_ids) - set(bad_ids))
+
+'''
 translate gene_names to ensembl ids. db = dbs['phenopolis_db']
 '''
 def gene_names_to_ids(db, queries):
