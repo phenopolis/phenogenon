@@ -1,6 +1,7 @@
 *pyc
 *test.py
 *swp
+*orig
 output/*
 data/private/*
 hpo/*.sh
