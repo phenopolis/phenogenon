@@ -2,3 +2,5 @@
 *test.py
 *swp
 output/*
+data/private/*
+hpo/*.sh

@@ -9,6 +9,7 @@ import errno
 import sys
 import sqlite3
 import re
+import itertools
 
 '''
 constants
@@ -102,6 +103,50 @@ def replace_hpo(hpo_db, hpo):
         return [new['id'][0], new['name'][0]]
     else:
         return hpo
+
+'''
+get all ancestor nodes of a given hpo_id.
+'''
+def get_hpo_ancestors(hpo_db, hpo_id):
+    """
+    Get HPO terms higher up in the hierarchy.
+    """
+    h=hpo_db.hpo.find_one({'id':hpo_id})
+    #print(hpo_id,h)
+    if 'replaced_by' in h:
+        # not primary id, replace with primary id and try again
+        h = hpo_db.hpo.find_one({'id':h['replaced_by'][0]})
+    hpo=[h]
+    if 'is_a' not in h: return hpo
+    for hpo_parent_id in h['is_a']:
+        #p=hpo_db.hpo.find({'id':hpo_parent_id}):
+        hpo+=list(itertools.chain(get_hpo_ancestors(hpo_db,hpo_parent_id))) 
+    #remove duplicates
+    hpo={h['id'][0]:h for h in hpo}.values()
+    return hpo
+
+'''
+minimise a list of hpos
+'''
+def hpo_minimum_set(hpo_db, hpo_ids=[]):
+    '''
+    minimize the hpo sets
+    results = {'HP:0000505': [ancestors]}
+    '''
+    hpo_ids = list(set(hpo_ids))
+    results = dict([(hpo_id, [ h['id'][0] for h in get_hpo_ancestors(hpo_db, hpo_id)],) for hpo_id in hpo_ids])
+    # minimise
+    bad_ids = []
+    for i in range(len(hpo_ids)):
+        for j in range(i+1,len(hpo_ids)):
+            if hpo_ids[i] in results[hpo_ids[j]]:
+                # i is j's ancestor, remove
+                bad_ids.append(hpo_ids[i])
+                break
+            if hpo_ids[j] in results[hpo_ids[i]]:
+                # j is i's ancestor, remove
+                bad_ids.append(hpo_ids[j])
+    return list(set(hpo_ids) - set(bad_ids))
 
 '''
 translate gene_names to ensembl ids. db = dbs['phenopolis_db']
