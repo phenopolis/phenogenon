@@ -191,7 +191,7 @@ def get_candidate_genes(dbs, genes=None, fields=None):
         }
     
     # fields of interests
-    fields = fields or ['hpo','solve','genes','sex','external_id']
+    fields = fields or ['hpo','solve','genes','sex','external_id','contact']
 
     all_valid_p = [p for p in dbs['patient_db'].patients.find({}) if p.get('genes',[])]
     result = {}
