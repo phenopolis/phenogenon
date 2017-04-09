@@ -126,6 +126,21 @@ def get_hpo_ancestors(hpo_db, hpo_id):
     return hpo
 
 '''
+get common ancestors of two given hpos
+'''
+def get_hpo_common_ancestors(hpo_db, h1, h2):
+    # return a list of hpo ids for h1 and h2's common ancestors
+    a1 = get_hpo_ancestors(hpo_db, h1)
+    a2 = get_hpo_ancestors(hpo_db,h2)
+    an1 = []
+    an2 = []
+    for a in a1:
+        an1.extend(a['id'])
+    for a in a2:
+        an2.extend(a['id'])
+    return list(set(an1) & set(an2))
+
+'''
 minimise a list of hpos
 '''
 def hpo_minimum_set(hpo_db, hpo_ids=[]):
@@ -191,7 +206,7 @@ def get_candidate_genes(dbs, genes=None, fields=None):
         }
     
     # fields of interests
-    fields = fields or ['hpo','solve','genes','sex','external_id']
+    fields = fields or ['hpo','solve','genes','sex','external_id','contact']
 
     all_valid_p = [p for p in dbs['patient_db'].patients.find({}) if p.get('genes',[])]
     result = {}
