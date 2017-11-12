@@ -10,6 +10,7 @@ import sys
 import sqlite3
 import re
 import itertools
+import logging
 
 '''
 constants
@@ -35,14 +36,22 @@ def _parse_config():
     return result
 
 OFFLINE_CONFIG = _parse_config()
+# log to file
+logging.basicConfig(filename=OFFLINE_CONFIG['debug']['log_file'],
+        level=getattr(logging,OFFLINE_CONFIG['debug']['log_level'].upper()))
 '''
 get useful mongo collections
 '''
 def get_mongo_collections(test=None):
-    conn = pymongo.MongoClient(
-        host = OFFLINE_CONFIG['mongodb']['db_host'],
-        port = int(OFFLINE_CONFIG['mongodb']['db_port']),
-    )
+    if OFFLINE_CONFIG['mongodb']['db_port']:
+        conn = pymongo.MongoClient(
+            host = OFFLINE_CONFIG['mongodb']['db_host'],
+            port = int(OFFLINE_CONFIG['mongodb']['db_port']),
+        )
+    else:
+        conn = pymongo.MongoClient(
+            host = OFFLINE_CONFIG['mongodb']['db_host'],
+        )
     if not test:
         return {
             'hpo_db': conn[OFFLINE_CONFIG['mongodb']['db_name_hpo']],
@@ -73,6 +82,32 @@ def get_chrom_genes(chroms, db):
         result.extend(genes)
     return result
 
+'''
+given symbols, return ENSEMBL ids.
+return as it is if one of the symbols already is ENSEMBL ids
+Note that if a symbol cannot be found, it issues a warning.
+'''
+def symbols_to_ids(symbols,db):
+    result = []
+    ss = []
+    fields = {
+            '_id':0,
+            'gene_id':1,
+            'gene_name':1,
+            }
+    for s in symbols:
+        if s.startswith('ENSG'):
+            result.append(s)
+        else:
+            ss.append(s)
+    this = db.genes.find({'gene_name':{'$in':ss}},fields)
+    gene_ids = set(result + [i['gene_id'] for i in this])
+    print(set([i['gene_name'] for i in this]))
+    missing_symbols = set(ss) - set([i['gene_name'] for i in this])
+    if missing_symbols:
+        logging.warning('symbols not exist in the database when translating'+\
+                ' to ENSEMBL ids: {}'.format(', '.join(missing_symbols)))
+    return list(gene_ids)
 '''
 mkdir -p
 http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
