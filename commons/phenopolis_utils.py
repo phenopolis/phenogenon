@@ -102,7 +102,6 @@ def symbols_to_ids(symbols,db):
             ss.append(s)
     this = db.genes.find({'gene_name':{'$in':ss}},fields)
     gene_ids = set(result + [i['gene_id'] for i in this])
-    print(set([i['gene_name'] for i in this]))
     missing_symbols = set(ss) - set([i['gene_name'] for i in this])
     if missing_symbols:
         logging.warning('symbols not exist in the database when translating'+\
