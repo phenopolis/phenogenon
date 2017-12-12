@@ -191,16 +191,8 @@ def get_hgf(**kwargs):
 '''
 given chromosome and db, return gene_ranges
 '''
-def get_chrom_genes(chrom, db):
+def get_chrom_genes(chrom,fields, db):
     # give chrom numbers, get all genes on them
-    fields = {
-            'gene_id':1,
-            'gene_name':1,
-            '_id':0,
-            'chrom':1,
-            'start':1,
-            'stop':1
-            }
 
     chrom = str(chrom)
     if chrom not in phenopolis_utils.VALID_CHROMOSOMES:
@@ -213,9 +205,7 @@ def get_chrom_genes(chrom, db):
 when mongodb is not available!
 '''
 def get_chrom_genes_with_jq(chrom,json_file):
-    cmd = """/share/apps/genomics/jq -c '[.gene_id, .gene_name, .chrom, .start, .stop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4]}' """ % chrom
-    print(json_file)
-    print(os.path.isfile(json_file))
+    cmd = """/share/apps/genomics/jq -c '[.gene_id, .gene_name, .chrom, .start, .stop, .xstart, .xstop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4],xstart:.[5],xstop:.[6]}' """ % chrom
     result = subprocess.check_output(cmd+json_file,shell=True)
     return helper.split_iter(result)
 
@@ -299,7 +289,7 @@ def main(**kwargs):
     # sometimes the cursor times out.
     # but do remember to close it
     if kwargs.get('chrom',None) is not None:
-        gene_ranges = get_chrom_genes(kwargs['chrom'], MONGO['phenopolis_db'])
+        gene_ranges = get_chrom_genes(kwargs['chrom'], fields, MONGO['phenopolis_db'])
         #gene_ranges = get_chrom_genes_with_jq(kwargs['chrom'],kwargs['uclex_genes_json'])
     else:
         gene_ranges = MONGO['phenopolis_db'].genes.find(this,fields,no_cursor_timeout=True)
@@ -428,27 +418,25 @@ def main(**kwargs):
                 # future implementation of getting phenogenon_I_sum_cutoff
                 #  from training data
                 genon_sums[mode][hpo] = sum([i[0] for i in v2 if i[0]>0])
-        all_vals = []
-        for k,v in genon_sums.items():
-            all_vals.extend(v.values())
 
-        # use Kmeans to find boundary between good and bad
-        ks = KMeans(n_clusters=2, random_state=0).fit(np.array(all_vals).reshape(-1,1))
-        # sometimes all are 0. need temp to hold it to avoid
-        # a ValueError
-        temp = [all_vals[i] for i,v in enumerate(ks.labels_) if v]
-        if not temp:
-            continue
-        cutf = min(temp)
-
-        # get mode, hpos and minimise them
-        mode_sums = {'r':0,'d':0}
+        # get mean and std
+        all_vals = genon_sums['r'].values() + genon_sums['d'].values()
+        cutf = np.mean(all_vals) + 2*np.std(all_vals)
         good_hpos = {'r':[],'d':[]}
-        for k,v in genon_sums.items():
-            for kk,vv in v.items():
-                if vv >= cutf:
-                    mode_sums[k] += vv
-                    good_hpos[k].append(kk)
+        mode_sums = {'r':0,'d':0}
+        for mode in ('r','d'):
+            '''
+            top_N = dict(sorted(
+                    genon_sums[mode].items(),
+                    key = lambda x: x[1],
+                    reverse = True
+                    )[:kwargs['top_pos_N']])
+            '''
+            for k,v in genon_sums[mode].items():
+                if v >= cutf:
+                    good_hpos[mode].append(k)
+                    mode_sums[mode] += v
+
         chosen_mode = 'd' if mode_sums['d'] >= mode_sums['r'] else 'r'
         #get negative set
         negative_hpos = helper.get_negative_hpos(
@@ -456,7 +444,6 @@ def main(**kwargs):
                 good_hpos[chosen_mode] + list(kwargs['hpo_mask']),
                 hpos
                 )
-
         # calculate hgf(hpo goodness of fit)
         args = dict(
                 phenogenons = phenogenon_cache[chosen_mode],
@@ -480,15 +467,12 @@ def main(**kwargs):
     # close cursor
     gene_ranges.close()
 
-    #####
-    hn = hpo_name(MONGO['hpo_db'],genon_sums['d'].keys())
-    for k,v in result[result.keys()[0]]['data'].items():
-        print(hn[k],v)
-    print('===')
-    for k,v in sorted(genon_sums['d'].items(),key=lambda x:x[1],reverse=True):
-        print(hn[k],v)
+    for g,v in result.items():
+        hn = hpo_name(MONGO['hpo_db'],v['data'].keys())
+        print(v['symbol'])
+        for k,vv in v['data'].items():
+            print(hn[k],vv)
     sys.exit()
-    #####
 
     # write everything to output
     with open(kwargs['output'], 'w') as outf:
@@ -508,7 +492,7 @@ if __name__ == '__main__':
                       help="output file name?")
     (options, args) = parser.parse_args()
     args = dict(
-        genes = ('ECT2L',),
+        genes = ('TUBB',),
         chrom = options.chrom,
         output = options.output,
         cadd_file = '/SAN/vyplab/UCLex/mainset_August2017'+
