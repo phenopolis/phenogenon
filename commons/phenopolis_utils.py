@@ -3,7 +3,11 @@ some common functions used across different analyses
 '''
 from __future__ import print_function, division
 import pymongo
-import ConfigParser
+# python3 is configparser, python2 is ConfigParser
+try:
+    import ConfigParser
+except ModuleNotFoundError:
+    import configparser as ConfigParser
 import os
 import errno
 import sys
@@ -32,7 +36,25 @@ def _parse_config():
         options = config.options(section)
         result[section] = {}
         for option in options:
-            result[section][option] = config.get(section, option)
+            value = config.get(section, option)
+            if value in ('true', 'True'):
+                value = True
+            elif value in ('false', 'False'):
+                value = False
+            elif value.isdigit():
+                value = int(value)
+            elif ',' in value:
+                value = re.split(r', *',value)
+                try:
+                    value = [float(i) for i in value]
+                except ValueError:
+                    pass
+            else:
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass
+            result[section][option] = value
     return result
 
 OFFLINE_CONFIG = _parse_config()
