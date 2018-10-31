@@ -2,10 +2,19 @@
 borrow from BioTools
 clean variant id
 '''
+import os
+import errno
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: 
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
 
 '''
 request ensembl for bases based on location
 '''
+
 def find_bases(chrom,start,end=None,build='hg19',strand=1):
     import requests
     import time
@@ -46,7 +55,7 @@ def clean_variant(v,fasta_ref=None,build='hg19'):
     #  until I can use samtools to query fasta_ref
     if v.count('-') == 4:
         import subprocess
-        if v[-1] == '-':
+        if v[-1] in {'-','*'}:
             # deletion
             chrom,pos,ref,rubbish,rubbish = v.split('-')
             pos = int(pos)-1

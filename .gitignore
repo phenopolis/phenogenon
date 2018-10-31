@@ -6,3 +6,5 @@
 output/*
 data/private/*
 hpo/*.sh
+tests/data/ABCA4_SCN1A.fasta
+tests/data/unnecessary
