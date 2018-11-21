@@ -5,6 +5,7 @@ import shutil
 import filecmp
 import json
 import subprocess
+import numpy as np
 sys.path.append('cutoff')
 sys.path.append('cutoff/cluster_scripts')
 sys.path.append('commons')
@@ -86,7 +87,23 @@ class PhenogenonTestCase(unittest.TestCase):
 
     def tearDown(self):
         # rm -r tests/data/tmp
-        shutil.rmtree(self.tmp_folder, ignore_errors = True)
+        #shutil.rmtree(self.tmp_folder, ignore_errors = True)
+        pass
+
+    def list2set(self, obj):
+        # turn list to set for comparison
+        if isinstance(obj, list):
+            if len(obj) > 1 and isinstance(obj[0], (list,dict)):
+                return sorted([self.list2set(i) for i in obj])
+            elif np.nan in obj:
+                return [None if np.isnan(i) else i for i in obj]
+            else:
+                return set(obj)
+        elif isinstance(obj, dict):
+            return {k: self.list2set(obj[k]) for k in obj}
+        else:
+            return obj
+        return obj
 
     def test_get_coding_variants(self):
         import get_coding_variants
@@ -105,22 +122,29 @@ class PhenogenonTestCase(unittest.TestCase):
         import patients_variants
         
         # ABCA4
+        gene = 'ENSG00000198691'
+        vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz'
         self.input_options.update(dict(
-                vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz',
-                genes = ('ENSG00000198691',),
+                vcf_file = vcf_file,
+                genes = (gene,),
                 #output = outfile,
         ))
         result = patients_variants.main(**self.input_options)
+        # remove the cover_df from result
+        del result[gene]['cover_df']
         with open('tests/data/ABCA4.pv.json', 'rt') as inf:
             expected = json.load(inf)
         self.assertDictEqual(result, expected)
         # SCN1A
+        gene = 'ENSG00000144285'
+        vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz'
         self.input_options.update(dict(
-                vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz',
-                genes = ('ENSG00000144285',),
+                vcf_file = vcf_file,
+                genes = (gene,),
                 #output = outfile,
         ))
         result = patients_variants.main(**self.input_options)
+        del result[gene]['cover_df']
         with open('tests/data/SCN1A.pv.json', 'rt') as inf:
             expected = json.load(inf)
         self.assertDictEqual(result, expected)
@@ -128,65 +152,80 @@ class PhenogenonTestCase(unittest.TestCase):
     def test_patient_map(self):
         import patient_map
         # ABCA4
+        gene = 'ENSG00000198691'
+        vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz'
         self.input_options.update(dict(
-                vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz',
-                genes = ('ENSG00000198691',),
+                vcf_file = vcf_file,
+                genes = (gene,),
         ))
-        result = patient_map.main(**self.input_options)
+        result = self.list2set(patient_map.main(**self.input_options))
+        del result[gene]['patients_variants']
         with open('tests/data/ABCA4.pm.json', 'rt') as inf:
-            expected = json.load(inf)
+            expected = self.list2set(json.load(inf))
         self.assertDictEqual(result, expected)
         # SCN1A
+        gene = 'ENSG00000144285'
+        vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz'
         self.input_options.update(dict(
-                vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz',
-                genes = ('ENSG00000144285',),
+                vcf_file = vcf_file,
+                genes = (gene,),
         ))
-        result = patient_map.main(**self.input_options)
+        result = self.list2set(patient_map.main(**self.input_options))
+        del result[gene]['patients_variants']
         with open('tests/data/SCN1A.pm.json', 'rt') as inf:
-            expected = json.load(inf)
+            expected = self.list2set(json.load(inf))
         self.assertDictEqual(result, expected)
 
     def test_phenogenon(self):
         import phenogenon
         # ABCA4
+        gene = 'ENSG00000198691'
         outfile = os.path.join(self.tmp_folder,'ABCA4.genon.json')
         self.input_options.update(dict(
                 vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz',
                 patient_map_file = 'tests/data/ABCA4.pm.json',
-                genes = ('ENSG00000198691',),
+                genes = (gene,),
                 output = outfile,
         ))
-        phenogenon.main(**self.input_options)
-        with open(outfile, 'rt') as inf:
-            result = json.load(inf)
+        result = phenogenon.main(**self.input_options)
         with open('tests/data/ABCA4.genon.json','rt') as inf:
             expected = json.load(inf)
-        self.assertDictEqual(result, expected)
+
+        for moi in ('r','d'):
+            for hpo in result[gene]['phenogenon'][moi]:
+                R = result[gene]['phenogenon'][moi][hpo]
+                E = expected[gene]['phenogenon'][moi][hpo]
+                np.testing.assert_array_equal(R,E)
+
         # SCN1A
+        gene = 'ENSG00000144285'
         outfile = os.path.join(self.tmp_folder,'SCN1A.genon.json')
         self.input_options.update(dict(
                 vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz',
                 patient_map_file = 'tests/data/SCN1A.pm.json',
-                genes = ('ENSG00000144285',),
+                genes = (gene,),
                 output = outfile,
         ))
-        phenogenon.main(**self.input_options)
-        with open(outfile, 'rt') as inf:
-            result = json.load(inf)
+        result = phenogenon.main(**self.input_options)
         with open('tests/data/SCN1A.genon.json','rt') as inf:
             expected = json.load(inf)
-        self.assertDictEqual(result, expected)
+        for moi in ('r','d'):
+            for hpo in result[gene]['phenogenon'][moi]:
+                R = result[gene]['phenogenon'][moi][hpo]
+                E = expected[gene]['phenogenon'][moi][hpo]
+                np.testing.assert_array_equal(R,E)
 
     def test_hgf(self):
         import goodness_of_fit
-        # ABCA4
+        # ABCA4 1:94458394-94586689
         outfile = os.path.join(self.tmp_folder,'ABCA4.hgf.json')
         self.input_options.update(dict(
                 vcf_file = 'tests/data/ABCA4.anonymised.vcf.gz',
                 patient_map_file = 'tests/data/ABCA4.pm.json',
                 patients_variants_file = 'tests/data/ABCA4.pv.json',
                 phenogenon_file = 'tests/data/ABCA4.genon.json',
-                genes = ('ENSG00000198691',),
+                range = '1:94458394-94586689',
+                #genes = ('ENSG00000198691',),
                 output = outfile,
         ))
         result = goodness_of_fit.main(**self.input_options)
@@ -194,20 +233,32 @@ class PhenogenonTestCase(unittest.TestCase):
             expected = json.load(inf)
         self.assertDictEqual(result, expected)
 
-        # SCN1A
+        # SCN1A 2:166845671-166984524
         outfile = os.path.join(self.tmp_folder,'SCN1A.hgf.json')
         self.input_options.update(dict(
                 vcf_file = 'tests/data/SCN1A.anonymised.vcf.gz',
                 patient_map_file = 'tests/data/SCN1A.pm.json',
                 patients_variants_file = 'tests/data/SCN1A.pv.json',
                 phenogenon_file = 'tests/data/SCN1A.genon.json',
-                genes = ('ENSG00000144285',),
+                range = '2:166845671-166984524',
+                #genes = ('ENSG00000144285',),
                 output = outfile,
         ))
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/SCN1A.hgf.json','rt') as inf:
             expected = json.load(inf)
         self.assertDictEqual(result, expected)
+
+    def test_test(self):
+        import patient_map
+        import patients_variants
+        # ABCA4
+        pass
+        #result['patients'] = dict(result['patients'])
+        #with open('tests/data/ABCA4.pv.json', 'rt') as inf:
+        #    l = inf.read().decode('ascii')
+        #    expected = json.loads(l)
+        #self.assertDictEqual(result, expected['ENSG00000198691'])
 
 
 if __name__ == '__main__':

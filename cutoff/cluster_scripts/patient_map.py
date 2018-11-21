@@ -5,21 +5,22 @@ For each gene, test each HPO with P_h >= N (N default 100),
   as negative set
 '''
 from __future__ import print_function, division
-import tabix
-import subprocess
-from optparse import OptionParser
 import sys
-sys.path.append('/cluster/project8/vyp/JingYu/git/phenopolis_analysis/commons')
-import gnomad_utils
-import phenopolis_utils
 import os
 import json
 from collections import defaultdict,Counter
-import pandas as pd
-import numpy as np
-import helper
 import itertools
 import copy
+import pandas as pd
+import numpy as np
+import tabix
+import subprocess
+from optparse import OptionParser
+sys.path.append('/cluster/project8/vyp/JingYu/git/phenopolis_analysis/commons')
+import gnomad_utils
+import phenopolis_utils
+import patients_variants as PV
+import helper
 
 MONGO = phenopolis_utils.get_mongo_collections()
 
@@ -55,46 +56,6 @@ def read_vcf(vcf_f):
     return result
 
 
-def get_patients_variants(**kwargs):
-    '''
-    change genotype_df's data format into a dictionary, so gnomad
-    and cadd can be added.
-    return result
-    {
-        patients:{p:[v1,v2]}
-        variants:{v1:{
-            gnomad_af:
-            gnomad_hom_f:
-            cadd:
-        }}
-    }
-    '''
-    # define result
-    result = {
-            'patients':defaultdict(list),
-            'variants':{}
-            }
-
-    compulsory_keys = {
-            'genotype_df',
-            'gnomad_freqs',
-            }
-    # check args
-    helper.check_args(compulsory_keys, kwargs, 'get_patients_variants')
-    # change the data structure to the result format
-    for col in list(kwargs['genotype_df']):
-        this = kwargs['genotype_df'][col]
-        # there might be a way to merge the following two steps into one
-        # + het
-        result['patients'][col].extend(this[this==1].index)
-        # + hom
-        result['patients'][col].extend(list(this[this==2].index)*2)
-    result['variants'] = {i:{
-        'gnomad_af':kwargs['gnomad_freqs'][i]['gnomad_af'],
-        'gnomad_hom_f':kwargs['gnomad_freqs'][i]['gnomad_hom_f'],
-        'cadd':None,
-        } for i in kwargs['genotype_df'].index}
-    return result
 '''
 get vcf
 '''
@@ -335,78 +296,14 @@ def main(**kwargs):
             print('===processed {} genes==='.format(number_processed))
         print('processing {}'.format(gene_range['gene_name']))
         # first parse vcf file to get genotype and coverage for each variant
-        vcf_file = kwargs['vcf_file'].format(gene_range['chrom']) 
-        args = dict(
-                vcf_file = vcf_file,
-                chrom = gene_range['chrom'],
-                start = gene_range['start'],
-                stop = gene_range['stop'],
-                unrelated_file = kwargs['unrelated_file'],
-                human_fasta_ref = kwargs['human_fasta_ref'],
-                v_cutoff = kwargs['v_cutoff'],
-                p_cutoff = kwargs['p_cutoff'],
-                gnomad_path = kwargs['gnomad_path'],
-                gnomad_cutoff = kwargs['gnomad_cutoff'],
-                patient_mini = patient_mini,
-                )
-        vcf_dfs = get_vcf_df(**args)
-        if vcf_dfs is None:
-            # no variants, continue
-            continue
-        
-        # get coding variants if last_chrom != this_chrom
-        if kwargs['remove_nc'] and gene_range['chrom'] != last_chrom:
-            coding_variant_file = kwargs['coding_variant_file'].format(gene_range['chrom'])
-            coding_variants = get_coding_variants(coding_variant_file)
-        last_chrom = gene_range['chrom']
-        genotype_df,cover_df,gnomad_freqs = vcf_dfs
         # then get patients_variants, with variants annotated with
         #  gnomad freqs and cadd
-        args = dict(
-                gnomad_freqs = gnomad_freqs,
-                genotype_df = genotype_df,
-                )
-        patients_variants = get_patients_variants(**args)
-        # remove noncoding?
-        if kwargs['remove_nc']:
-            print(len(patients_variants['variants']))
-            helper.remove_noncoding(gene_range['gene_id'],patients_variants,coding_variants)
-            print(len(patients_variants['variants']))
-        # if no variants left, skip
-        if not patients_variants['variants']: continue
-        # for each gene, remove batch-specific variants
-        args = dict(
-                data = patients_variants,
-                patient_mini = patient_mini,
-                )
-        batch_specific_variants = helper.get_batch_artefacts(**args)
-        patients_variants = helper.remove_batch_artefacts(
-                patients_variants,
-                batch_specific_variants,
-                patient_mini,
-                )
-        # add cadd
-        args = dict(
-                variants = patients_variants['variants'],
-                chrom = gene_range['chrom'],
-                start = gene_range['start'],
-                stop = gene_range['stop'],
-                cadd_file = kwargs['cadd_file'],
-                )
-        cadds = helper.add_cadd(**args)
-        for k,v in cadds.items():
-            patients_variants['variants'][k]['cadd'] = v
-
-        # when two variants are in cis and both appear in one patient,
-        # discard the variant with lower cadd in that patient
-        # example SDK1 ('7-3990565-C-T','7-4014039-C-T')
-        # for now, only focus on variants with hom_f < 0.00025
-        remove_cis(patients_variants,genotype_df)
+        patients_variants = PV.main(**kwargs)[gene_range['gene_id']]
 
         # get patient_map for recessive and dominant modes
         args = dict(
                 data = patients_variants,
-                vcf = cover_df,
+                vcf = patients_variants['cover_df'],
                 gnomad_steps = gnomad_steps,
                 cadd_steps = cadd_steps,
                 cis_gap = kwargs['cis_gap'],
@@ -426,7 +323,7 @@ def main(**kwargs):
         NP = {}
         for mode in modes:
             args['mode'] = mode
-            M = helper.get_patient_map(**args)
+            M= helper.get_patient_map(**args)
             NP[mode] = len(set(list(itertools.chain.from_iterable(
                 [v[0] for k,v in M.items() if k[1] == 0]
                 ))))
@@ -463,6 +360,7 @@ def main(**kwargs):
         result[gene_range['gene_id']] = {
                 'symbol': gene_range['gene_name'],
                 'patient_map':patient_map,
+                'patients_variants':patients_variants,
                 'NP': NP,
                 }
     # close cursor

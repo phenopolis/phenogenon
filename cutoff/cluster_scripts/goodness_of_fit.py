@@ -5,6 +5,7 @@ import warnings
 import json
 import os
 import math
+import copy
 import numpy as np
 from collections import defaultdict,Counter
 from scipy import stats
@@ -12,10 +13,11 @@ import gnomad_utils
 import helper
 sys.path.append('../commons')
 import phenopolis_utils
+import phenogenon as Pheno
 
-MONGO = phenopolis_utils.get_mongo_collections()
+# MONGO = phenopolis_utils.get_mongo_collections()
 
-class Phenogenon:
+class Goodness_of_fit:
     def __init__(self,genons):
         self.genons = genons
         # convert genons to np array
@@ -163,7 +165,7 @@ class Phenogenon:
             msg = 'mode has to be either r or d'
             raise ValueError(msg)
         for ind in s_p_inds:
-            patients = self.patient_map['patient_map'][mode]["{},0".format(ind)][0]
+            patients = self.patient_map[mode]["{},0".format(ind)][0]
             cadd_cuts = (self.cadd_step * ind, self.cadd_step * (ind+1))
             gnomad_cut = self.gnomad_step
             for p in patients:
@@ -316,13 +318,13 @@ def get_hpo_from_json(f):
     # convert it to a dict
     return {i['id'][0]:i for i in data}
 
-def get_phenogenon(**kwargs):
+def get_hgf(**kwargs):
     result = {
             'NP':kwargs['data']['NP'],
             'symbol':kwargs['data']['symbol'],
     }
-    P = Phenogenon(kwargs['data']['phenogenon'])
-    # set some parameters for Phenogenon
+    P = Goodness_of_fit(kwargs['data']['phenogenon'])
+    # set some parameters for hgf
     for k in (
             'damage_cadd_ind',
             'combine_pvalues_method',
@@ -398,119 +400,29 @@ def combine_pvalues(pvalues, method='fisher', weights=None):
 
 def main(**kwargs):
     kwargs['hpo_db'] = get_hpo_from_json(kwargs['hpo_json'])
-    if not kwargs['output']:
-        msg = 'Need to specify output'
-        raise ValueError(msg)
     result = {}
     # get patient_mini and patient_info
     kwargs['patient_info'] = helper.get_snapshot(kwargs['patient_info_file'])
 
-    if 'genes' in kwargs:
-        # find gene_id and chrom
-        genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
-        genes = MONGO['phenopolis_db'].genes.find(
-            {'gene_id':{'$in':genes}},
-            {'_id':0, 'gene_id':1, 'chrom':1}
-        )
-        # aggregate on chrom
-        chroms = defaultdict(list)
-        for g in genes:
-            chroms[g['chrom']].append(g['gene_id'])
-        for chrom,genes in chroms.items():
-            if kwargs.get('phenogenon_file', None) is None:
-                infile = os.path.join(
-                        kwargs['phenogenon_path'], 
-                        '{}.json'.format(chrom),
-                )
-            else:
-                infile = kwargs['phenogenon_file']
-            try:
-                with open(infile,'r') as inf:
-                    data = json.load(inf)
-            except IOError:
-                continue
-            # get patient_maps and patients_variants
-            if kwargs.get('patient_map_file', None) is None:
-                infile = os.path.join(
-                    kwargs['patient_maps_path'],
-                    '{}.json'.format(chrom)
-                )
-            else:
-                infile = kwargs['patient_map_file']
-
-            with open(infile,'r') as inf:
-                pm = json.load(inf)
-
-            if kwargs.get('patients_variants_file', None) is None:
-                infile = os.path.join(
-                    kwargs['patients_variants_path'],
-                    '{}.json'.format(chrom)
-                )
-            else:
-                infile = kwargs['patients_variants_file']
-            with open(infile,'r') as inf:
-                pv = json.load(inf)
-
-            for gene_id in genes:
-                # find patient_maps and patients_variants
-                kwargs['patient_map'] = pm[gene_id]
-                kwargs['patients_variants'] = pv[gene_id]
-                # get phenogenon
-                kwargs['data'] = data[gene_id]
-                print(data[gene_id]['symbol'])
-                result[gene_id] = get_phenogenon(**kwargs)
-        return result
-    else:
-        infile = os.path.join(
-                kwargs['phenogenon_path'],
-                '{}.json'.format(kwargs['chrom'])
-        )
-        with open(infile,'r') as inf:
-            data = json.load(inf)
-        # get patient_maps and patients_variants
-        with open(os.path.join(
-            kwargs['patient_maps_path'],
-            '{}.json'.format(kwargs['chrom'])
-            ),'r') as inf:
-            pm = json.load(inf)
-        with open(os.path.join(
-            kwargs['patients_variants_path'],
-            '{}.json'.format(kwargs['chrom'])
-            ),'r') as inf:
-            pv = json.load(inf)
-
-        outf = open(kwargs['output'], 'w')
-        outf.write('{')
-        n = 0
-        for gene_id, value in data.items():
-            # find patient_maps and patients_variants
-            kwargs['patient_map'] = pm[gene_id]
-            kwargs['patients_variants'] = pv[gene_id]
-            print(value['symbol'])
-            kwargs['data'] = value
-            output = json.dumps({
-                gene_id: get_phenogenon(**kwargs)
-            })
-            output = output[1:-1]
-            if n > 0:
-                # meaning not the first record. add a comma
-                output = ',' + output
-            outf.write(output)
-            n += 1
-            #result[gene_id] = get_phenogenon(**kwargs)
-
-        outf.write('}')
-
-        outf.close()
+    # if there are symbols, turn them into ensembl ids
+    # genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
+    for gene_id in genes:
+        # find patient_maps and patients_variants
+        args = copy.copy(kwargs)
+        args['genes'] = [gene_id]
+        pheno = Pheno.main(**args)[gene_id]
+        kwargs['data'] = pheno
+        kwargs['patient_map'] = pheno.pop('patient_map')
+        kwargs['patients_variants'] = pheno.pop('patients_variants')
+        # get hgf
+        result[gene_id] = get_hgf(**kwargs)
+    return result
 
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
     usage = "usage: %prog [options] arg1 arg2"
     parser = OptionParser(usage=usage)
 
-    parser.add_option("--chrom",
-                      dest="chrom",
-                      help="which chrom to process?")
     parser.add_option("--output",
                       dest="output",
                       help="output file name?")
@@ -519,22 +431,6 @@ if __name__ == '__main__':
         print('already done')
         sys.exit()
     args = dict(
-        #genes = ('FAM160A1','ZNF235',),
-        #genes = ('RPUSD2',),
-        #genes = ('ABCA4','CERKL','SCN1A','GUCY2D','USH2A','PROM1','TERT','CNGB1','CRB1','IMPG2','RPGR','ADGRV1','PKD1L2','MAN1B1','SDK1','NUP205'),
-        #genes = ('PDE4DIP',), # skips SEGDUP, but gnomad_hom_f == 0 and gnomad_af > 0.01 kills it
-        #genes = ('ABCA4','PKD1L2'),
-        #genes = ('PDPR',), # has bad variant 16-70176451-C-T
-        #genes = ('PDE4DIP',), # 1-144931607-C-T,1-144875986-A-G,1-144921950-C-G all African
-        #genes = ('SDK1',), # ('7-3990657-C-T', 39), ('7-3991502-C-T', 39) might be coming from same individuals. If they do, it's very likely they are in cis, and should be collapsed.
-        #genes = ('USP7',),
-        #genes = ('PKD1L2',),#'NUP205'),
-        # population structure curse. Rare bins with Phenogenon p values lower
-        #  than pop_check_p will be checked.
-        # note that remove_pop_curse is never used!
-        #remove_pop_curse = False,
-        chrom = options.chrom,
-        output = options.output,
         phenogenon_path = '../data/public/cutoff/phenogenon',
         patients_variants_path = '../data/private/cutoff/patients_variants',
         patient_maps_path = '../data/private/cutoff/patient_maps',
@@ -557,7 +453,11 @@ if __name__ == '__main__':
     # update args with commons.cfg
     args.update(phenopolis_utils.OFFLINE_CONFIG['generic'])
     args.update(phenopolis_utils.OFFLINE_CONFIG['phenogenon'])
-    main(**args)
+
+    # get result and write to output
+    result = main(**args)
+    with open(options.output, 'wt') as outf:
+        json.dump(result, outf)
     print('==done==')
 
 

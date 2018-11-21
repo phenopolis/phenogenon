@@ -17,6 +17,7 @@ import helper
 from sklearn.cluster import KMeans
 import itertools
 import copy
+import patient_map as PM
 
 MONGO = phenopolis_utils.get_mongo_collections()
 
@@ -91,15 +92,10 @@ def main(**kwargs):
         'hpo_mask',
         'cadd_step',
         'cadd_min',
-        'output',
         }
     helper.check_args(compulsory_keys, kwargs, 'main')
     # defaults
     kwargs.setdefault('gene_inheritance_mode',{})
-    # output already exist?
-    if os.path.isfile(kwargs['output']):
-        print('already done')
-        return None
     # get patient_mini and patient_info
     patient_info = helper.get_snapshot(kwargs['patient_info_file'])
     patient_mini = helper.get_snapshot(kwargs['patient_mini_file'])
@@ -136,42 +132,21 @@ def main(**kwargs):
             )
     cadd_steps = np.arange(kwargs['cadd_min'], 60, kwargs['cadd_step'])
 
-    # get patient_maps
-    if 'patient_map_file' in kwargs:
-        patient_map_file = kwargs['patient_map_file']
-    else:
-        patient_map_file = os.path.join(
-                kwargs['patient_maps_path'],
-                '{}.json'.format(kwargs['chrom'])
-            ),
-    with open(patient_map_file, 'r') as inf:
-        patient_maps = json.load(inf)
-
-    # for each gene, get all valid variants/patients according to p/v_cutoff, 
-    # annotate using gnomad
     result = {}
     number_processed = 0
-    outf = open(kwargs['output'], 'w')
-    outf.write('{')
     for gene_range in gene_ranges:
         # get patient_map
-        patient_map = patient_maps.pop(gene_range['gene_id'], None)
+        args = copy.copy(kwargs)
+        args['genes'] = [gene_range['gene_id']]
+        patient_map = PM.main(**args)[gene_range['gene_id']]
         if patient_map is None:
             continue
         # print progress
         number_processed += 1
         if not number_processed % 100:
             print('===processed {} genes==='.format(number_processed))
-        print('processing {}'.format(gene_range['gene_name']))
 
-        modes = kwargs['gene_inheritance_mode'].get(
-                gene_range['gene_name'],
-                kwargs['gene_inheritance_mode'].get(
-                    gene_range['gene_id'],
-                    'rd'
-                    )
-                )
-
+        modes = 'rd'
         # translate patient_map's key
         pm = {}
         for m in modes:
@@ -202,19 +177,13 @@ def main(**kwargs):
 
                 phenogenon_cache[mode][hpo] = genon.tolist()
 
-        output = json.dumps({
-            gene_range['gene_id']:{
-                'symbol': gene_range['gene_name'],
-                'phenogenon': phenogenon_cache,
-                'NP': patient_map['NP'],
-            }
-        })
-        # strip off the braces
-        output = output[1:-1]
-        if number_processed != 1:
-            # meaning not the first record. add a comma
-            output = ',' + output
-        outf.write(output)
+        result[gene_range['gene_id']] = {
+            'symbol': gene_range['gene_name'],
+            'phenogenon': phenogenon_cache,
+            'NP': patient_map['NP'],
+            'patient_map': patient_map['patient_map'],
+            'patients_variants': patient_map['patients_variants'],
+        }
 
     # close cursor
     gene_ranges.close()
@@ -227,10 +196,8 @@ def main(**kwargs):
             print(hn[k],vv)
     sys.exit()
     '''
-    outf.write('}')
+    return result
 
-    outf.close()
-    
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
     usage = "usage: %prog [options] arg1 arg2"
@@ -246,7 +213,6 @@ if __name__ == '__main__':
     args = dict(
         chrom = options.chrom,
         output = options.output,
-        patient_maps_path = '../data/private/cutoff/patient_maps',
         #gene_inheritance_mode = dict(
         #    ABCA4 = 'r',
         #    CERKL = 'r',

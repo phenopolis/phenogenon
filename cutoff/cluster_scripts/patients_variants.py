@@ -291,22 +291,6 @@ def main(**kwargs):
     patient_mini = helper.get_snapshot(kwargs['patient_mini_file'])
     # get p_h for all hpos
     phs = helper.get_phs(patient_info)
-    # add cohort info into patient_mini
-    all_p = MONGO['patient_db'].patients.find({'external_id':{'$in':patient_mini.keys()}},{'external_id':1,'contact':1})
-    for i in all_p:
-        # !!!! this belongs to UCLex's problem!!! remove if publish
-        # JingYu and BLACK to UKIRDC, KELSELL to DavidKelsell
-        contactdict = dict(
-                JingYu = 'UKIRDC',
-                Black = 'UKIRDC',
-                KELSELL = 'DavidKelsell',
-                TonySegal = 'SEGAL',
-                SanjaySisodiya = 'SISODIYA',
-                )
-        contact = i['contact']['user_id']
-        contact = contactdict.get(contact,contact)
-        patient_mini[i['external_id']] = {'hpo': patient_mini[i['external_id']],
-                                          'contact': contact}
     # get genes, if not provided. get all gene_ids from mongodb, \
             #if provided, convert to gene_id
     fields = {
@@ -420,6 +404,7 @@ def main(**kwargs):
         # example SDK1 ('7-3990565-C-T','7-4014039-C-T')
         # for now, only focus on variants with hom_f < 0.00025
         remove_cis(patients_variants,genotype_df)
+        patients_variants['cover_df'] = cover_df
 
         # output patients_variants
         PV[gene_range['gene_id']] = patients_variants
@@ -428,12 +413,7 @@ def main(**kwargs):
     gene_ranges.close()
 
 
-    # write everything to output
-    if kwargs.get('output', None) is not None:
-        with open(kwargs['output'], 'wb') as outf:
-            json.dump(PV, outf)
-    else:
-        return PV
+    return PV
 
     
 if __name__ == '__main__':
