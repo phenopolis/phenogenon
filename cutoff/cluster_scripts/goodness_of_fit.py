@@ -11,7 +11,7 @@ from collections import defaultdict,Counter
 from scipy import stats
 import gnomad_utils
 import helper
-sys.path.append('../commons')
+sys.path.append('../../commons')
 import phenopolis_utils
 import phenogenon as Pheno
 
@@ -72,7 +72,7 @@ class Goodness_of_fit:
         return genon_sratio
 
     def get_genon_hratio(self,mode,hpo):
-        genon_sum = self.genon_sums[mode][hpo]
+        genon_sum = self.hgf[mode][hpo]
         if not genon_sum:
             return None
         genon = self.genons[mode][hpo].copy()
@@ -220,7 +220,7 @@ class Goodness_of_fit:
             for mode in ('r','d'):
                 # only calculate for positive hpos
                 for hpo in self.positive_hpos[mode]:
-                    gc[mode][hpo] = self.genon_sums[mode][hpo] * \
+                    gc[mode][hpo] = self.hgf[mode][hpo] * \
                             self.genon_sratios[mode][hpo]
             for mode in ('r','d'):
                 vals[mode] = max(gc[mode].values() or [0])
@@ -238,13 +238,13 @@ class Goodness_of_fit:
 
             # get positive hpos and negative hpos
             for mode in ('r','d'):
-                not_nan = [i for i in self.genon_sums[mode].values() 
+                not_nan = [i for i in self.hgf[mode].values() 
                         if i is not None]
                 if len(not_nan):
                     cutf = np.mean(not_nan) + \
                             self.coefficient * \
                             np.std(not_nan)
-                    for k,v in self.genon_sums[mode].items():
+                    for k,v in self.hgf[mode].items():
                         if v is not None and v > cutf:
                             ps[mode].append(k)
                     ps[mode] = helper.hpo_minimum_set(self.hpo_db,ps[mode])
@@ -254,17 +254,17 @@ class Goodness_of_fit:
         return self._positive_hpos
 
     @property
-    def genon_sums(self):
+    def hgf(self):
         if getattr(self, '_genon_sum', None) is None:
-            genon_sums = {'r':{},'d':{}}
+            hgf = {'r':{},'d':{}}
             for mode in ('r','d'):
                 for hpo in self.genons[mode]:
                     # is it pop cursed?
                     pop = self.pop_curse_flags[mode].get(hpo, None)
                     if not pop or set(pop) == set(['NFE']):
-                        genon_sums[mode][hpo] = self.get_genon_sum(mode,hpo)
-            self._genon_sums = genon_sums
-        return self._genon_sums
+                        hgf[mode][hpo] = self.get_genon_sum(mode,hpo)
+            self._hgf = hgf
+        return self._hgf
 
     @property
     def genon_hratios(self):
@@ -321,7 +321,6 @@ def get_hpo_from_json(f):
 def get_hgf(**kwargs):
     result = {
             'NP':kwargs['data']['NP'],
-            'symbol':kwargs['data']['symbol'],
     }
     P = Goodness_of_fit(kwargs['data']['phenogenon'])
     # set some parameters for hgf
@@ -352,11 +351,11 @@ def get_hgf(**kwargs):
             ):
        result[k] = getattr(P,k)
 
-    # get genon_sums only for positive HPOs
-    result['genon_sums'] = {}
+    # get hgf only for positive HPOs
+    result['hgf'] = {}
     for mode in ('r','d'):
-        result['genon_sums'][mode] = {k:v 
-                for k,v in P.genon_sums[mode].items()
+        result['hgf'][mode] = {k:v 
+                for k,v in P.hgf[mode].items()
                 if k in P.positive_hpos[mode]
         }
 
@@ -406,17 +405,12 @@ def main(**kwargs):
 
     # if there are symbols, turn them into ensembl ids
     # genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
-    for gene_id in genes:
-        # find patient_maps and patients_variants
-        args = copy.copy(kwargs)
-        args['genes'] = [gene_id]
-        pheno = Pheno.main(**args)[gene_id]
-        kwargs['data'] = pheno
-        kwargs['patient_map'] = pheno.pop('patient_map')
-        kwargs['patients_variants'] = pheno.pop('patients_variants')
-        # get hgf
-        result[gene_id] = get_hgf(**kwargs)
-    return result
+    pheno = Pheno.main(**kwargs)
+    kwargs['data'] = pheno
+    kwargs['patient_map'] = pheno.pop('patient_map')
+    kwargs['patients_variants'] = pheno.pop('patients_variants')
+    # get hgf
+    return get_hgf(**kwargs)
 
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
@@ -426,14 +420,19 @@ if __name__ == '__main__':
     parser.add_option("--output",
                       dest="output",
                       help="output file name?")
+
+    parser.add_option("--range",
+                      dest="range",
+                      help="genome range to calculate? e.g. 2:4000-6000")
     (options, args) = parser.parse_args()
     if os.path.isfile(options.output):
         print('already done')
         sys.exit()
     args = dict(
-        phenogenon_path = '../data/public/cutoff/phenogenon',
-        patients_variants_path = '../data/private/cutoff/patients_variants',
-        patient_maps_path = '../data/private/cutoff/patient_maps',
+        phenogenon_path = '../../data/public/cutoff/phenogenon',
+        patients_variants_path = '../../data/private/cutoff/patients_variants',
+        patient_maps_path = '../../data/private/cutoff/patient_maps',
+        range = options.range,
         # known gene inheritance mode. if provided, no need to infer from data
         #  for sometimes it does make mistakes such that for CERKL
         #gene_inheritance_mode = dict(
@@ -453,6 +452,7 @@ if __name__ == '__main__':
     # update args with commons.cfg
     args.update(phenopolis_utils.OFFLINE_CONFIG['generic'])
     args.update(phenopolis_utils.OFFLINE_CONFIG['phenogenon'])
+    args['N'] = args.pop('n')
 
     # get result and write to output
     result = main(**args)
