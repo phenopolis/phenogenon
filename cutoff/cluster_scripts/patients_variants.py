@@ -5,7 +5,7 @@ For each gene, test each HPO with P_h >= N (N default 100),
   as negative set
 '''
 from __future__ import print_function, division
-import tabix
+import pysam
 import subprocess
 from optparse import OptionParser
 import sys
@@ -21,7 +21,7 @@ import helper
 import itertools
 import copy
 
-MONGO = phenopolis_utils.get_mongo_collections()
+# MONGO = phenopolis_utils.get_mongo_collections()
 
 def read_vcf(vcf_f):
     '''
@@ -201,13 +201,13 @@ def get_chrom_genes_with_jq(chrom,json_file):
 '''
 get coding variants from coding.tsv
 '''
-def get_coding_variants(f):
-    result = []
-    with open(f,'r') as inf:
-        for line in inf:
-            row = line.rstrip().split('\t')
-            result.append(tuple(row))
-    return set(result)
+def get_coding_variants(f,chrom,start,stop):
+    tb = pysam.TabixFile(f)
+    result = set()
+    for line in tb.fetch(chrom,start,stop):
+        row = line.rstrip().split('\t')
+        result.add(row[2])
+    return result
                     
 def remove_cis(patients_variants, genotype_df):
     '''
@@ -304,16 +304,6 @@ def main(**kwargs):
             'xstop':1,
             }
     this = {}
-    if kwargs.get('genes',None) is not None:
-        genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
-        this = {'gene_id':{'$in':genes}}
-
-    # sometimes the cursor times out.
-    # but do remember to close it
-    if kwargs.get('chrom',None) is not None:
-        gene_ranges = get_chrom_genes(kwargs['chrom'], fields, MONGO['phenopolis_db'])
-    else:
-        gene_ranges = MONGO['phenopolis_db'].genes.find(this,fields,no_cursor_timeout=True)
     # get gnomad and cadd steps
     gnomad_steps = np.arange(
             0,
@@ -326,94 +316,83 @@ def main(**kwargs):
     # annotate using gnomad
     # use PV to record patients_variants
     PV = {}
-    number_processed = 0
-    last_chrom = None
     coding_variants = None
-    for gene_range in gene_ranges:
-        # print progress
-        number_processed += 1
-        if not number_processed % 100:
-            print('===processed {} genes==='.format(number_processed))
-        print('processing {}'.format(gene_range['gene_name']))
-        # first parse vcf file to get genotype and coverage for each variant
-        vcf_file = kwargs['vcf_file'].format(gene_range['chrom']) 
-        args = dict(
-                vcf_file = vcf_file,
-                chrom = gene_range['chrom'],
-                start = gene_range['start'],
-                stop = gene_range['stop'],
-                unrelated_file = kwargs['unrelated_file'],
-                human_fasta_ref = kwargs['human_fasta_ref'],
-                v_cutoff = kwargs['v_cutoff'],
-                p_cutoff = kwargs['p_cutoff'],
-                gnomad_path = kwargs['gnomad_path'],
-                gnomad_cutoff = kwargs['gnomad_cutoff'],
-                patient_mini = patient_mini,
-                )
-        vcf_dfs = get_vcf_df(**args)
-        if vcf_dfs is None:
-            # no variants, continue
-            continue
-        
-        # get coding variants if last_chrom != this_chrom
-        if kwargs['remove_nc'] and gene_range['chrom'] != last_chrom:
-            coding_variant_file = kwargs['coding_variant_file'].format(gene_range['chrom'])
-            coding_variants = get_coding_variants(coding_variant_file)
-        last_chrom = gene_range['chrom']
-        'genon_sum_cutoff_coefficient',
-        genotype_df,cover_df,gnomad_freqs = vcf_dfs
-        # then get patients_variants, with variants annotated with
-        #  gnomad freqs and cadd
-        args = dict(
-                gnomad_freqs = gnomad_freqs,
-                genotype_df = genotype_df,
-                )
-        patients_variants = get_patients_variants(**args)
-        # remove noncoding?
-        if kwargs['remove_nc']:
-            print(len(patients_variants['variants']))
-            helper.remove_noncoding(gene_range['gene_id'],patients_variants,coding_variants)
-            print(len(patients_variants['variants']))
-        # if no variants left, skip
-        if not patients_variants['variants']: continue
-        # for each gene, remove batch-specific variants
-        args = dict(
-                data = patients_variants,
-                patient_mini = patient_mini,
-                )
-        batch_specific_variants = helper.get_batch_artefacts(**args)
-        patients_variants = helper.remove_batch_artefacts(
-                patients_variants,
-                batch_specific_variants,
-                patient_mini,
-                )
-        # add cadd
-        args = dict(
-                variants = patients_variants['variants'],
-                chrom = gene_range['chrom'],
-                start = gene_range['start'],
-                stop = gene_range['stop'],
-                cadd_file = kwargs['cadd_file'],
-                )
-        cadds = helper.add_cadd(**args)
-        for k,v in cadds.items():
-            patients_variants['variants'][k]['cadd'] = v
+    chrom, crange = kwargs['range'].split(':')
+    start, stop = crange.split('-')
+    # first parse vcf file to get genotype and coverage for each variant
+    vcf_file = kwargs['vcf_file'].format(chrom) 
+    args = dict(
+            vcf_file = vcf_file,
+            chrom = chrom,
+            start = start,
+            stop = stop,
+            unrelated_file = kwargs['unrelated_file'],
+            human_fasta_ref = kwargs['human_fasta_ref'],
+            v_cutoff = kwargs['v_cutoff'],
+            p_cutoff = kwargs['p_cutoff'],
+            gnomad_path = kwargs['gnomad_path'],
+            gnomad_cutoff = kwargs['gnomad_cutoff'],
+            patient_mini = patient_mini,
+            )
+    vcf_dfs = get_vcf_df(**args)
+    if vcf_dfs is None:
+        # no variants, continue
+        return None
+    
+    # get coding variants
+    if kwargs['remove_nc']:
+        coding_variant_file = kwargs['coding_variant_file'].format(chrom)
+        coding_variants = get_coding_variants(coding_variant_file,chrom,int(start),int(stop))
+    'genon_sum_cutoff_coefficient',
+    genotype_df,cover_df,gnomad_freqs = vcf_dfs
+    # then get patients_variants, with variants annotated with
+    #  gnomad freqs and cadd
+    args = dict(
+            gnomad_freqs = gnomad_freqs,
+            genotype_df = genotype_df,
+            )
+    patients_variants = get_patients_variants(**args)
+    # remove noncoding?
+    if kwargs['remove_nc']:
+        print(len(patients_variants['variants']))
+        helper.remove_noncoding(patients_variants,coding_variants)
+        print(len(patients_variants['variants']))
+    # if no variants left, skip
+    if not patients_variants['variants']:
+        return None
+    # for each gene, remove batch-specific variants
+    args = dict(
+            data = patients_variants,
+            patient_mini = patient_mini,
+            )
+    batch_specific_variants = helper.get_batch_artefacts(**args)
+    patients_variants = helper.remove_batch_artefacts(
+            patients_variants,
+            batch_specific_variants,
+            patient_mini,
+            )
+    # add cadd
+    args = dict(
+            variants = patients_variants['variants'],
+            chrom = chrom,
+            start = start,
+            stop = stop,
+            cadd_file = kwargs['cadd_file'],
+            )
+    cadds = helper.add_cadd(**args)
+    for k,v in cadds.items():
+        patients_variants['variants'][k]['cadd'] = v
 
-        # when two variants are in cis and both appear in one patient,
-        # discard the variant with lower cadd in that patient
-        # example SDK1 ('7-3990565-C-T','7-4014039-C-T')
-        # for now, only focus on variants with hom_f < 0.00025
-        remove_cis(patients_variants,genotype_df)
-        patients_variants['cover_df'] = cover_df
+    # when two variants are in cis and both appear in one patient,
+    # discard the variant with lower cadd in that patient
+    # example SDK1 ('7-3990565-C-T','7-4014039-C-T')
+    # for now, only focus on variants with hom_f < 0.00025
+    remove_cis(patients_variants,genotype_df)
+    patients_variants['cover_df'] = cover_df
 
-        # output patients_variants
-        PV[gene_range['gene_id']] = patients_variants
+    # output patients_variants
+    return patients_variants
 
-    # close cursor
-    gene_ranges.close()
-
-
-    return PV
 
     
 if __name__ == '__main__':
@@ -421,16 +400,16 @@ if __name__ == '__main__':
     usage = "usage: %prog [options] arg1 arg2"
     parser = OptionParser(usage=usage)
 
-    parser.add_option("--chrom",
-                      dest="chrom",
-                      help="which chrom to process?")
+    parser.add_option("--range",
+                      dest="range",
+                      help="which genome range to process?")
     parser.add_option("--output",
                       dest="output",
                       help="output file name?")
     (options, args) = parser.parse_args()
     args = dict(
         #genes = ('ABCA4','CERKL','SCN1A','GUCY2D','USH2A','PROM1','TERT','CNGB1','CRB1','IMPG2','RPGR','SDK1'),
-        chrom = options.chrom,
+        range = options.range,
         output = options.output,
     )
     # update args with commons.cfg

@@ -40,7 +40,8 @@ def main(options):
             HGVSc = record['HGVSc']
             gene_id = record['Gene']
             #print(variant,HGVSc,gene_id, record['Codons'])
-            outline = '\t'.join([variant, gene_id]) + '\n'
+            chrom, pos, _, _ = variant.split('-')
+            outline = '\t'.join([chrom, pos, variant, gene_id]) + '\n'
             if '-' in HGVSc or '+' in HGVSc:
                 # see if it is too far away from coding region
                 nodigit = ''.join([i for i in HGVSc.split(':')[1] if i.isdigit() or i in ('-','+','_')])

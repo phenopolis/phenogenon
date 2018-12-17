@@ -19,7 +19,7 @@ import itertools
 import copy
 import patient_map as PM
 
-MONGO = phenopolis_utils.get_mongo_collections()
+#MONGO = phenopolis_utils.get_mongo_collections()
 
 def get_hpo_from_json(f):
     '''
@@ -118,75 +118,57 @@ def main(**kwargs):
             }
     this = {}
 
-    if kwargs.get('genes',None) is not None:
-        genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
-        this = {'gene_id':{'$in':genes}}
-        gene_ranges = MONGO['phenopolis_db'].genes.find(this,fields,no_cursor_timeout=True)
-    else:
-        gene_ranges = get_chrom_genes(kwargs['chrom'], fields, MONGO['phenopolis_db'])
     # get gnomad and cadd steps
     gnomad_steps = np.arange(
             0,
             kwargs['gnomad_cutoff']+kwargs['gnomad_step'],
             kwargs['gnomad_step']
             )
-    cadd_steps = np.arange(kwargs['cadd_min'], 60, kwargs['cadd_step'])
+    # cadd_steps = np.arange(kwargs['cadd_min'], 60, kwargs['cadd_step'])
 
-    result = {}
-    number_processed = 0
-    for gene_range in gene_ranges:
-        # get patient_map
-        args = copy.copy(kwargs)
-        args['genes'] = [gene_range['gene_id']]
-        patient_map = PM.main(**args)[gene_range['gene_id']]
-        if patient_map is None:
-            continue
-        # print progress
-        number_processed += 1
-        if not number_processed % 100:
-            print('===processed {} genes==='.format(number_processed))
+    # get patient_map
+    patient_map = PM.main(**kwargs)
+    if patient_map is None:
+        return None
 
-        modes = 'rd'
-        # translate patient_map's key
-        pm = {}
-        for m in modes:
-            pm[m] = {}
-            for k,v in patient_map['patient_map'][m].items():
-                key = tuple([int(i) for i in k.split(',')])
-                pm[m][key] = v
-        phenogenon_cache = {'r':{},'d':{}}
-        # get phenogenon sums on the first gnomad bin.
-        # get all testable hpos
-        hpos = [i for i,v in phs.items() 
-                if v >= kwargs['N'] 
-                and i not in kwargs['hpo_mask']]
-        for hpo in hpos:
-            # inheritance mode: r and d
-            # Note that for each HPO, it only keeps the inheritance mode
-            #  with the higher hgf score
+    modes = 'rd'
+    # translate patient_map's key
+    pm = {}
+    for m in modes:
+        pm[m] = {}
+        for k,v in patient_map['patient_map'][m].items():
+            key = tuple([int(i) for i in k.split(',')])
+            pm[m][key] = v
+    phenogenon_cache = {'r':{},'d':{}}
+    # get phenogenon sums on the first gnomad bin.
+    # get all testable hpos
+    hpos = [i for i,v in phs.items() 
+            if v >= kwargs['N'] 
+            and i not in kwargs['hpo_mask']]
+    for hpo in hpos:
+        # inheritance mode: r and d
+        # Note that for each HPO, it only keeps the inheritance mode
+        #  with the higher hgf score
 
-            for mode in modes:
-                args = dict(
-                        hpos = hpo,
-                        mode = mode,
-                        patient_info = patient_info,
-                        patient_map = pm[mode],
-                        )
+        for mode in modes:
+            args = dict(
+                    hpos = hpo,
+                    mode = mode,
+                    patient_info = patient_info,
+                    patient_map = pm[mode],
+                    )
 
-                genon =  helper.phenogenon(**args)
+            genon =  helper.phenogenon(**args)
 
-                phenogenon_cache[mode][hpo] = genon.tolist()
+            phenogenon_cache[mode][hpo] = genon.tolist()
 
-        result[gene_range['gene_id']] = {
-            'symbol': gene_range['gene_name'],
-            'phenogenon': phenogenon_cache,
-            'NP': patient_map['NP'],
-            'patient_map': patient_map['patient_map'],
-            'patients_variants': patient_map['patients_variants'],
-        }
+    return {
+        'phenogenon': phenogenon_cache,
+        'NP': patient_map['NP'],
+        'patient_map': patient_map['patient_map'],
+        'patients_variants': patient_map['patients_variants'],
+    }
 
-    # close cursor
-    gene_ranges.close()
 
     '''
     for g,v in result.items():
@@ -203,15 +185,15 @@ if __name__ == '__main__':
     usage = "usage: %prog [options] arg1 arg2"
     parser = OptionParser(usage=usage)
 
-    parser.add_option("--chrom",
-                      dest="chrom",
-                      help="which chrom to process?")
+    parser.add_option("--range",
+                      dest="range",
+                      help="which genome range to process?")
     parser.add_option("--output",
                       dest="output",
                       help="output file name?")
     (options, args) = parser.parse_args()
     args = dict(
-        chrom = options.chrom,
+        range = options.range,
         output = options.output,
         #gene_inheritance_mode = dict(
         #    ABCA4 = 'r',

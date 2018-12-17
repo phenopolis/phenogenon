@@ -219,13 +219,13 @@ def remove_batch_artefacts(data, bad_vs, patient_mini, mode='all'):
             result['patients'][k1] = this_vs
     return result
 
-def remove_noncoding(gene_id, data, coding_variants):
+def remove_noncoding(data, coding_variants):
     for v in data['variants'].keys():
-        if (v,gene_id) not in coding_variants:
+        if v not in coding_variants:
             data['variants'].pop(v)
     for p in data['patients'].keys():
         for v in list(data['patients'][p]):
-            if (v,gene_id) not in coding_variants:
+            if v not in coding_variants:
                 data['patients'][p].remove(v)
 
 '''

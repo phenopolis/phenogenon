@@ -429,9 +429,6 @@ if __name__ == '__main__':
         print('already done')
         sys.exit()
     args = dict(
-        phenogenon_path = '../../data/public/cutoff/phenogenon',
-        patients_variants_path = '../../data/private/cutoff/patients_variants',
-        patient_maps_path = '../../data/private/cutoff/patient_maps',
         range = options.range,
         # known gene inheritance mode. if provided, no need to infer from data
         #  for sometimes it does make mistakes such that for CERKL

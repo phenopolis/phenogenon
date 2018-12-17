@@ -22,7 +22,7 @@ import phenopolis_utils
 import patients_variants as PV
 import helper
 
-MONGO = phenopolis_utils.get_mongo_collections()
+# MONGO = phenopolis_utils.get_mongo_collections()
 
 def read_vcf(vcf_f):
     '''
@@ -138,26 +138,6 @@ def get_vcf_df(**kwargs):
     genotype_df.drop(bad_ps,inplace=True,axis=1)
     return (genotype_df, cover_df, gnomad_freqs)
 
-'''
-given chromosome and db, return gene_ranges
-'''
-def get_chrom_genes(chrom,fields, db):
-    # give chrom numbers, get all genes on them
-
-    chrom = str(chrom)
-    if chrom not in phenopolis_utils.VALID_CHROMOSOMES:
-        raise ValueError('Error: %s is not a valid chromosome!' % chrom)
-    gene_ranges = db.genes.find({'chrom':chrom},fields,no_cursor_timeout=True)
-
-    return gene_ranges
-
-'''
-when mongodb is not available!
-'''
-def get_chrom_genes_with_jq(chrom,json_file):
-    cmd = """/share/apps/genomics/jq -c '[.gene_id, .gene_name, .chrom, .start, .stop, .xstart, .xstop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4],xstart:.[5],xstop:.[6]}' """ % chrom
-    result = subprocess.check_output(cmd+json_file,shell=True)
-    return helper.split_iter(result)
 
 '''
 get coding variants from coding.tsv
@@ -264,18 +244,6 @@ def main(**kwargs):
             'xstop':1,
             }
     this = {}
-    if kwargs.get('genes',None) is not None:
-        genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
-        this = {'gene_id':{'$in':genes}}
-
-    # sometimes the cursor times out.
-    # but do remember to close it
-    if kwargs.get('chrom',None) is not None:
-        gene_ranges = get_chrom_genes(kwargs['chrom'], fields, MONGO['phenopolis_db'])
-        #gene_ranges = get_chrom_genes_with_jq(kwargs['chrom'],kwargs['uclex_genes_json'])
-    else:
-        gene_ranges = MONGO['phenopolis_db'].genes.find(this,fields,no_cursor_timeout=True)
-    # get gnomad and cadd steps
     gnomad_steps = np.arange(
             0,
             kwargs['gnomad_cutoff']+kwargs['gnomad_step'],
@@ -286,85 +254,68 @@ def main(**kwargs):
     # for each gene, get all valid variants/patients according to p/v_cutoff, 
     # annotate using gnomad
     result = {}
-    number_processed = 0
     last_chrom = None
     coding_variants = None
-    for gene_range in gene_ranges:
-        # print progress
-        number_processed += 1
-        if not number_processed % 100:
-            print('===processed {} genes==='.format(number_processed))
-        print('processing {}'.format(gene_range['gene_name']))
-        # first parse vcf file to get genotype and coverage for each variant
-        # then get patients_variants, with variants annotated with
-        #  gnomad freqs and cadd
-        patients_variants = PV.main(**kwargs)[gene_range['gene_id']]
+    # then get patients_variants, with variants annotated with
+    #  gnomad freqs and cadd
+    patients_variants = PV.main(**kwargs)
 
-        # get patient_map for recessive and dominant modes
-        args = dict(
-                data = patients_variants,
-                vcf = patients_variants['cover_df'],
-                gnomad_steps = gnomad_steps,
-                cadd_steps = cadd_steps,
-                cis_gap = kwargs['cis_gap'],
-                )
-        patient_map = {'r':{},'d':{}}
-        # first get mode if provided. Note that the keys could be id
-        #  or gene name
-        modes = kwargs['gene_inheritance_mode'].get(
-                gene_range['gene_name'],
-                kwargs['gene_inheritance_mode'].get(
-                    gene_range['gene_id'],
-                    'rd'
-                    )
-                )
+    # get patient_map for recessive and dominant modes
+    args = dict(
+            data = patients_variants,
+            vcf = patients_variants['cover_df'],
+            gnomad_steps = gnomad_steps,
+            cadd_steps = cadd_steps,
+            cis_gap = kwargs['cis_gap'],
+            )
+    patient_map = {'r':{},'d':{}}
+    # first get mode if provided. Note that the keys could be id
+    #  or gene name
+    modes = 'rd'
 
-        # get number of patients who carry rare variants when get patient_maps
-        NP = {}
-        for mode in modes:
-            args['mode'] = mode
-            M= helper.get_patient_map(**args)
-            NP[mode] = len(set(list(itertools.chain.from_iterable(
-                [v[0] for k,v in M.items() if k[1] == 0]
-                ))))
-            # change the keys to a string
-            for k,v in M.items():
-                patient_map[mode]['{},{}'.format(k[0],k[1])] = [list(v[0]),list(v[1])]
-        # for debugging
-        #print({k:v[0] for k,v in patient_map['r'].items() if k == (6,0)})
-        #for i in range(10):
-        #    debug = Counter()
-        #    for p in patient_map['d'][(i,0)][0]:
-        #        for v in patients_variants['patients'][p]:
-        #            if patients_variants['variants'][v]['gnomad_af'] < 0.00025:
-        #                debug[v] += 1
-        #    print(i)
-        #    print('-{}-'.format(len(patient_map['d'][(i,0)][0])))
-        #    print(debug.most_common(3))
+    # get number of patients who carry rare variants when get patient_maps
+    NP = {}
+    for mode in modes:
+        args['mode'] = mode
+        M= helper.get_patient_map(**args)
+        NP[mode] = len(set(list(itertools.chain.from_iterable(
+            [v[0] for k,v in M.items() if k[1] == 0]
+            ))))
+        # change the keys to a string
+        for k,v in M.items():
+            patient_map[mode]['{},{}'.format(k[0],k[1])] = [list(v[0]),list(v[1])]
+    # for debugging
+    #print({k:v[0] for k,v in patient_map['r'].items() if k == (6,0)})
+    #for i in range(10):
+    #    debug = Counter()
+    #    for p in patient_map['d'][(i,0)][0]:
+    #        for v in patients_variants['patients'][p]:
+    #            if patients_variants['variants'][v]['gnomad_af'] < 0.00025:
+    #                debug[v] += 1
+    #    print(i)
+    #    print('-{}-'.format(len(patient_map['d'][(i,0)][0])))
+    #    print(debug.most_common(3))
 
-        '''
-        hposet = {'HP:0000512'}
-        vs = []
-        ind = 4
-        for p in patient_map['d'][(ind,0)][0]:
-            print(p,patient_mini[p])
-            this_hpos = set(patient_info[p])
-            if True: #this_hpos & hposet:
-                for v in patients_variants['patients'][p]:
-                    if patients_variants['variants'][v]['gnomad_af'] < 0.00025 and 5*(ind+1) > patients_variants['variants'][v]['cadd'] >= 5*ind:
-                        vs.append(v)
-        print(Counter(vs))
-        sys.exit()
-        '''
+    '''
+    hposet = {'HP:0000512'}
+    vs = []
+    ind = 4
+    for p in patient_map['d'][(ind,0)][0]:
+        print(p,patient_mini[p])
+        this_hpos = set(patient_info[p])
+        if True: #this_hpos & hposet:
+            for v in patients_variants['patients'][p]:
+                if patients_variants['variants'][v]['gnomad_af'] < 0.00025 and 5*(ind+1) > patients_variants['variants'][v]['cadd'] >= 5*ind:
+                    vs.append(v)
+    print(Counter(vs))
+    sys.exit()
+    '''
 
-        result[gene_range['gene_id']] = {
-                'symbol': gene_range['gene_name'],
-                'patient_map':patient_map,
-                'patients_variants':patients_variants,
-                'NP': NP,
-                }
-    # close cursor
-    gene_ranges.close()
+    return {
+            'patient_map':patient_map,
+            'patients_variants':patients_variants,
+            'NP': NP,
+            }
 
     '''
     for g,v in result.items():
@@ -383,16 +334,16 @@ if __name__ == '__main__':
     usage = "usage: %prog [options] arg1 arg2"
     parser = OptionParser(usage=usage)
 
-    parser.add_option("--chrom",
-                      dest="chrom",
-                      help="which chrom to process?")
+    parser.add_option("--range",
+                      dest="range",
+                      help="which genome range to process?")
     parser.add_option("--output",
                       dest="output",
                       help="output file name?")
     (options, args) = parser.parse_args()
     args = dict(
         #genes = ('ABCA4','CERKL','SCN1A','GUCY2D','USH2A','PROM1','TERT','CNGB1','CRB1','IMPG2','RPGR','SDK1'),
-        chrom = options.chrom,
+        range = options.range,
         output = options.output,
     )
     # update args with commons.cfg
