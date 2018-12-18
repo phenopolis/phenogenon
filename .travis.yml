@@ -1,20 +1,30 @@
+dist: xenial
 language: python
 python:
   - "2.7"
-  
-install: 
+before_install:
+  - WORKDIR=$(pwd)
+  - mkdir ${WORKDIR}/test_bin
+install:
+  - wget https://github.com/samtools/bcftools/releases/download/1.9/bcftools-1.9.tar.bz2 -O bcftools-1.9.tar.bz2
+  - mkdir bcftools-1.9; tar -xjf bcftools-1.9.tar.bz2 -C bcftools-1.9 --strip-components=1
+  - sudo ${WORKDIR}/bcftools-1.9/htslib-1.9/configure
+  - sudo make -C ${WORKDIR}/bcftools-1.9/htslib-1.9
+  - sudo make install -C ${WORKDIR}/bcftools-1.9/htslib-1.9
+  - sudo cp ${WORKDIR}/bcftools-1.9/htslib-1.9/tabix ${WORKDIR}/test_bin
+  - sudo ${WORKDIR}/bcftools-1.9/configure
+  - sudo make -C ${WORKDIR}/bcftools-1.9
+  - sudo make install -C ${WORKDIR}/bcftools-1.9
+  - sudo cp ${WORKDIR}/bcftools-1.9/bcftools ${WORKDIR}/test_bin
 
-  - sudo apt-get update
+  - export PATH=$WORKDIR/test_bin:$PATH
+  - bcftools --version
+  - tabix --version
   - pip install -r requirements.txt
   - pip install coveralls
-
-services:
-  - mongodb
-  
 script:
-# command to run coveralls (test coverage) and run tests 
+  # command to run coveralls (test coverage) and run tests
   - coverage run --omit=*/site-packages/*,*/tests/* -m unittest discover -s tests
-  
 after_success:
   coveralls
 
