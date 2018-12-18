@@ -6,9 +6,8 @@ import filecmp
 import json
 import gzip
 import numpy as np
-sys.path.append('cutoff')
-sys.path.append('cutoff/cluster_scripts')
-sys.path.append('commons')
+sys.path.append('lib')
+sys.path.append('lib/commons')
 import common_utils
 
 # ABCA4: 1:94400000-94600000
@@ -55,13 +54,13 @@ class PhenogenonTestCase(unittest.TestCase):
             # if no phasing is done, use cis_gap as a guideline to check
             #  if two variants are in cis
             cis_gap = 100,
-            # these two cutoffs are for getting cleaned vcf, 
+            # these two cutoffs are for getting cleaned vcf,
             v_cutoff = 0.4,
             p_cutoff = 0.4,
-            # this cutoff is to get poorly covered individuals 
+            # this cutoff is to get poorly covered individuals
             #  for a given set of variants, to get patient_map
             # e.g. we have a~e five variants. if vmc is set at 0.5,
-            #  and an individual not covered on a,b,c, it is removed 
+            #  and an individual not covered on a,b,c, it is removed
             #  from the analysis
             patient_missingness_cutoff = 0.5,
 
@@ -113,7 +112,7 @@ class PhenogenonTestCase(unittest.TestCase):
 
     def test_patients_variants(self):
         pass
-        
+
     def test_patient_map(self):
         pass
 

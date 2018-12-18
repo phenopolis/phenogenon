@@ -5,7 +5,7 @@ import gnomad_utils
 import subprocess
 from optparse import OptionParser
 import sys
-sys.path.append('../commons')
+sys.path.append('commons')
 import phenopolis_utils
 import os
 import json
@@ -75,7 +75,7 @@ def main(**kwargs):
      v cutoff and p cutoff are to remove variants and patients with \
           #low coverage over the gene
 
-    returns hpo goodness of fit score, p_g (gnomad_freq 
+    returns hpo goodness of fit score, p_g (gnomad_freq
     '''
     # check args
     compulsory_keys = {
@@ -140,8 +140,8 @@ def main(**kwargs):
     phenogenon_cache = {'r':{},'d':{}}
     # get phenogenon sums on the first gnomad bin.
     # get all testable hpos
-    hpos = [i for i,v in phs.items() 
-            if v >= kwargs['N'] 
+    hpos = [i for i,v in phs.items()
+            if v >= kwargs['N']
             and i not in kwargs['hpo_mask']]
     for hpo in hpos:
         # inheritance mode: r and d

@@ -11,7 +11,7 @@ from collections import defaultdict,Counter
 from scipy import stats
 import gnomad_utils
 import helper
-sys.path.append('../../commons')
+sys.path.append('commons')
 import phenopolis_utils
 import phenogenon as Pheno
 
@@ -227,7 +227,7 @@ class Goodness_of_fit:
             moi = vals['r'] - vals['d']
             self._predicted_moi = moi
         return self._predicted_moi
-    
+
     @property
     def positive_hpos(self):
         '''
@@ -238,7 +238,7 @@ class Goodness_of_fit:
 
             # get positive hpos and negative hpos
             for mode in ('r','d'):
-                not_nan = [i for i in self.hgf[mode].values() 
+                not_nan = [i for i in self.hgf[mode].values()
                         if i is not None]
                 if len(not_nan):
                     cutf = np.mean(not_nan) + \
@@ -304,7 +304,7 @@ class Goodness_of_fit:
                 for hpo in self.genons[mode]:
                     this = self.get_pop_curse_flag(mode,hpo)
                     if this is not None:
-                        pop_curse_flags[mode][hpo] = this 
+                        pop_curse_flags[mode][hpo] = this
             self._pop_curse_flags = pop_curse_flags
         return self._pop_curse_flags
 
@@ -354,7 +354,7 @@ def get_hgf(**kwargs):
     # get hgf only for positive HPOs
     result['hgf'] = {}
     for mode in ('r','d'):
-        result['hgf'][mode] = {k:v 
+        result['hgf'][mode] = {k:v
                 for k,v in P.hgf[mode].items()
                 if k in P.positive_hpos[mode]
         }

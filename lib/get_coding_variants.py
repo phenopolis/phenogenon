@@ -9,7 +9,7 @@ import os
 import sys
 import re
 from optparse import OptionParser
-sys.path.append('../../commons')
+sys.path.append('commons')
 import common_utils # need clean_variant
 
 def main(options):

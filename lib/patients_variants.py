@@ -1,7 +1,7 @@
 '''
 hpo goodness of fit test.
-For each gene, test each HPO with P_h >= N (N default 100), 
-  using the rest HPO terms (not daughter or ancestor) with P_h >= N 
+For each gene, test each HPO with P_h >= N (N default 100),
+  using the rest HPO terms (not daughter or ancestor) with P_h >= N
   as negative set
 '''
 from __future__ import print_function, division
@@ -9,7 +9,7 @@ import pysam
 import subprocess
 from optparse import OptionParser
 import sys
-sys.path.append('../../commons')
+sys.path.append('commons')
 import gnomad_utils
 import phenopolis_utils
 import os
@@ -25,7 +25,7 @@ import copy
 
 def read_vcf(vcf_f):
     '''
-    read vcf. 
+    read vcf.
     if miss, -1. if wildtype, 0. if het, 1. if hom, 2
     return dataframe
     '''
@@ -100,15 +100,15 @@ get vcf
 '''
 def get_vcf_df(**kwargs):
     '''
-    use bcf tools to subset variants and patients. then according to 
+    use bcf tools to subset variants and patients. then according to
     p/v_cutoff to get bad_vs, bad_ps to remove
     '''
     compulsory_keys = {
-            'vcf_file', 
-            'chrom', 
-            'start', 
-            'stop', 
-            'unrelated_file', 
+            'vcf_file',
+            'chrom',
+            'start',
+            'stop',
+            'unrelated_file',
             'human_fasta_ref',
             'v_cutoff',
             'gnomad_cutoff',
@@ -120,11 +120,11 @@ def get_vcf_df(**kwargs):
     position = '{chrom}:{start}-{stop}'.format(**kwargs)
     ps1 = subprocess.Popen(('tabix','-h',kwargs['vcf_file'],position),stdout=subprocess.PIPE)
             # subset on unrelated samples, and normalise
-    ps2 = subprocess.Popen(('bcftools', 'view', '-Ou', '-S', 
+    ps2 = subprocess.Popen(('bcftools', 'view', '-Ou', '-S',
         kwargs['unrelated_file'], '-f', 'PASS'),stdin=ps1.stdout,stdout=subprocess.PIPE)
     ps3 = subprocess.Popen(('bcftools', 'norm', '-Ou', '-m', '-any'),
             stdin=ps2.stdout,stdout=subprocess.PIPE)
-    normed_vcf = subprocess.check_output(['bcftools', 'norm', '-Ov', '-f', 
+    normed_vcf = subprocess.check_output(['bcftools', 'norm', '-Ov', '-f',
         kwargs['human_fasta_ref']],stdin=ps3.stdout)
     # get vcf df. genotype -1 = missing, 0 = wildtype, 1 = het, 2 = hom
     genotype_df = read_vcf(normed_vcf)
@@ -162,7 +162,7 @@ def get_vcf_df(**kwargs):
         if v['gnomad_af'] > 0.01 and v['gnomad_hom_f'] == 0.0
         ])
 
-    # add to bad_vs gnomad_hom_af >= gnomad_cutoff, 
+    # add to bad_vs gnomad_hom_af >= gnomad_cutoff,
     #  and those not covered by gnomad_path
     # Note that if gnomad_hom_af >= gnomad_cutoff, then gnomad_af >= gnomad_cutoff
     #  but not vice versa
@@ -171,7 +171,7 @@ def get_vcf_df(**kwargs):
     bad_vs.update([i for i,v in gnomad_freqs.items()
         if v['gnomad_af'] is None or v['gnomad_hom_f'] >= kwargs['gnomad_cutoff']])
     vs_count = np.sum(genotype_df[genotype_df>0],axis=1)
-    bad_vs.update([i for i in gnomad_freqs if vs_count[i] > 3 and gnomad_freqs[i]['pop_filter']])    
+    bad_vs.update([i for i in gnomad_freqs if vs_count[i] > 3 and gnomad_freqs[i]['pop_filter']])
     # then drop bad_ps and bad_vs
     genotype_df.drop(bad_vs,inplace=True)
     genotype_df.drop(bad_ps,inplace=True,axis=1)
@@ -208,7 +208,7 @@ def get_coding_variants(f,chrom,start,stop):
         row = line.rstrip().split('\t')
         result.add(row[2])
     return result
-                    
+
 def remove_cis(patients_variants, genotype_df):
     '''
     # when two variants are in cis and both appear in one patient,
@@ -221,7 +221,7 @@ def remove_cis(patients_variants, genotype_df):
     '''
     patients_variants['r_patients'] = copy.copy(patients_variants['patients'])
 
-    rare_variants = [k for k,v in patients_variants['variants'].items() 
+    rare_variants = [k for k,v in patients_variants['variants'].items()
             if v['gnomad_hom_f'] < 0.00025]
     sub_df = genotype_df.loc[rare_variants][patients_variants['r_patients'].keys()]
     sub_df[sub_df > 1] = 1
@@ -260,7 +260,7 @@ def main(**kwargs):
      v cutoff and p cutoff are to remove variants and patients with \
           #low coverage over the gene
 
-    returns hpo goodness of fit score, p_g (gnomad_freq 
+    returns hpo goodness of fit score, p_g (gnomad_freq
     '''
     # check args
     compulsory_keys = {
@@ -312,7 +312,7 @@ def main(**kwargs):
             )
     cadd_steps = np.arange(kwargs['cadd_min'], 60, kwargs['cadd_step'])
 
-    # for each gene, get all valid variants/patients according to p/v_cutoff, 
+    # for each gene, get all valid variants/patients according to p/v_cutoff,
     # annotate using gnomad
     # use PV to record patients_variants
     PV = {}
@@ -320,7 +320,7 @@ def main(**kwargs):
     chrom, crange = kwargs['range'].split(':')
     start, stop = crange.split('-')
     # first parse vcf file to get genotype and coverage for each variant
-    vcf_file = kwargs['vcf_file'].format(chrom) 
+    vcf_file = kwargs['vcf_file'].format(chrom)
     args = dict(
             vcf_file = vcf_file,
             chrom = chrom,
@@ -338,7 +338,7 @@ def main(**kwargs):
     if vcf_dfs is None:
         # no variants, continue
         return None
-    
+
     # get coding variants
     if kwargs['remove_nc']:
         coding_variant_file = kwargs['coding_variant_file'].format(chrom)
@@ -394,7 +394,7 @@ def main(**kwargs):
     return patients_variants
 
 
-    
+
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
     usage = "usage: %prog [options] arg1 arg2"

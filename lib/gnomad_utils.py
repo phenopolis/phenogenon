@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import sys
 import pysam
 import os
-sys.path.append('../../commons')
+sys.path.append('commons')
 import common_utils
 
 class BadVariantException(Exception): pass
@@ -101,12 +101,12 @@ def freqs(v,path_to_gnomad,mode='exome'):
             info_dict[a] = b
         info_dict['filter'] = data['filter']
         return info_dict
-                
+
     return None
 
 
 '''
-simple query on overall allele freq (or homozygote frequency). if covered, return at least 0. if not, return None. 
+simple query on overall allele freq (or homozygote frequency). if covered, return at least 0. if not, return None.
 '''
 def overall_freqs(vs,path_to_gnomad):
     result = {}
@@ -141,7 +141,7 @@ def overall_freqs(vs,path_to_gnomad):
         hemi_c = None
         pop_filter = []
         filters = {'exome':None,'genome':None}
-        # also check population frequencies to remove any variants 
+        # also check population frequencies to remove any variants
         # with big af(>0.01)/hom_f(0) discrepancy, such as 1-144931607-C-T
         pops = {p:{'Hom':0,'Hemi':0,'AC':0,'AN':0} for p in POPS}
         for m in ['exome', 'genome']:

@@ -116,7 +116,7 @@ def get_batch_artefacts(**kwargs):
     # check compulsory args
     compulsory_args = {
             'data', # the genotype data
-            'patient_mini', # the phenotype data, 
+            'patient_mini', # the phenotype data,
                             #with cohort id encoded in contact
         }
     check_args(compulsory_args,kwargs,'get_batch_artefacts')
@@ -124,14 +124,14 @@ def get_batch_artefacts(**kwargs):
     # lower_bound is there to remove cohorts where there is just one patient
     # zero_gnomad_c_cutoff allows max internal count when gnomad_af is 0
 
-    # for example, '19-44777406-G-A' and '19-44740306-C-CA' are 
-    # Jewish variants, and found predominantly in SEGAL's cohort, 
+    # for example, '19-44777406-G-A' and '19-44740306-C-CA' are
+    # Jewish variants, and found predominantly in SEGAL's cohort,
     # which is known to have many Jews. These variants would significantly
     # contributes to the false positive enrichments.
-    # ideally one would set a lower binom_cutoff, removing those variants 
-    # by doing a population study on different cohorts, then remove 
+    # ideally one would set a lower binom_cutoff, removing those variants
+    # by doing a population study on different cohorts, then remove
     # suspicious variants by looking at gnomad population af
-    # 
+    #
     optional = dict(
             lower_bound = 2,
             zero_gnomad_c_cutoff = 2,
@@ -186,7 +186,7 @@ def get_batch_artefacts(**kwargs):
             prob = 1 - binom.cdf(v2-1, cohorts[k1], kwargs['data']['variants'][k2]['gnomad_hom_f'])
             if prob < kwargs['binom_cutoff'] / n_variants:
                 #print(k2,prob)
-                result_r[k1].append(k2)  
+                result_r[k1].append(k2)
     for k in result_r:
         result_r[k] = set(result_r[k])
     return {'d':result_d,'r':result_r}
@@ -289,8 +289,8 @@ def get_patient_map(**kwargs):
 '''
 get variants within a given bin
 for recessive, the second variant needs to be no more frequent
-than the first selected variant, and its cadd no lower than the 
-first variant 
+than the first selected variant, and its cadd no lower than the
+first variant
 '''
 def get_variants(**kwargs):
     compulsory_args = {
@@ -301,14 +301,14 @@ def get_variants(**kwargs):
             }
     check_args(compulsory_args, kwargs, 'get_variants')
     mode_dict = {'r':'gnomad_hom_f','d':'gnomad_af'}
-    narrow_vs = (k for k,v in kwargs['variants'].items() 
-            if kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]]<kwargs['gr'][1] 
+    narrow_vs = (k for k,v in kwargs['variants'].items()
+            if kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]]<kwargs['gr'][1]
             and kwargs['cr'][0] <= v['cadd']<kwargs['cr'][1]
             )
     broad_vs = tuple()
     if kwargs['mode'] == 'r':
-        broad_vs = (k for k,v in kwargs['variants'].items() 
-                if v[mode_dict[kwargs['mode']]] < kwargs['gr'][1] 
+        broad_vs = (k for k,v in kwargs['variants'].items()
+                if v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
                 and v['cadd'] >= kwargs['cr'][0]
                 )
     return (set(narrow_vs),set(broad_vs))
@@ -344,7 +344,7 @@ def get_patients(**kwargs):
     args['variants']= kwargs['data']['variants']
     p = []
     narrow_vs,broad_vs = get_variants(**args)
-    
+
     if not narrow_vs:
         return ([],narrow_vs,set())
 
@@ -378,11 +378,11 @@ def get_patients(**kwargs):
                         for i in itertools.combinations(sorted(good+other,key=lambda x: int(x.split('-')[1])),2):
                             if not set(good) & set(i): continue
                             cis_p = kwargs['phase'][k][i] if i in kwargs['phase'][k] else 0
-                            if cis_p < kwargs['phase_cutoff']: 
+                            if cis_p < kwargs['phase_cutoff']:
                                 p.append(k)
                                 break
                     else:
-                        p.append(k)    
+                        p.append(k)
     return (p,narrow_vs,not_covered_patients)
 
 '''
@@ -407,7 +407,7 @@ def phenogenon(**kwargs):
         shape1.append(k[0])
         shape2.append(k[1])
     logp_df = np.zeros( (
-        len(set(shape1)), 
+        len(set(shape1)),
         len(set(shape2))
         ) )
     gamma_weights = logp_df.copy()
@@ -423,9 +423,9 @@ def phenogenon(**kwargs):
             if set(hpos).issubset(set(kwargs['patient_info'][p]['hpo'])):
                 p_gh += 1
         pval = fisher.pvalue(
-                p_a - p_h - p_g + p_gh, 
-                p_h - p_gh, 
-                p_g - p_gh, 
+                p_a - p_h - p_g + p_gh,
+                p_h - p_gh,
+                p_g - p_gh,
                 p_gh
                 ).right_tail
         logp_df[k[0]][k[1]] = pval
