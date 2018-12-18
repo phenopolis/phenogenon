@@ -1,6 +1,6 @@
 from __future__ import print_function, division
 import sys
-import tabix
+import pysam
 import os
 sys.path.append('../../commons')
 import common_utils
@@ -14,7 +14,7 @@ coverage, look at different parts of the ref
 '''
 def coverage(v,path_to_gnomad,mode='exome'):
     v = common_utils.clean_variant(v)
-    # pytabix does not support header yet. hard code it
+    # pysam does not support header yet. hard code it
     header = ['chrom','pos','mean','median',1,5,10,15,20,25,30,50,100,]
     chrom,pos,ref,alt = v.split('-')
     if mode == 'exome':
@@ -24,7 +24,7 @@ def coverage(v,path_to_gnomad,mode='exome'):
     else:
         msg = "mode only accepts 'exome' or 'genome'"
         raise ValueError(msg)
-    tb = tabix.open(file)
+    tb = pysam.TabixFile(file)
     start = int(pos) - 1
     end = int(pos)
     if len(ref) != len(alt):
@@ -32,9 +32,10 @@ def coverage(v,path_to_gnomad,mode='exome'):
         start += 1
         end += len(ref) - 1
 
-    rs = tb.query(chrom, start, end)
+    rs = tb.fetch(chrom, start, end)
     result = {}
-    for r in rs:
+    for line in rs:
+        r = line.rstrip().split('\t')
         this = {a:b for a,b in zip(header,r)}
         result[int(this['pos'])] = this
     if not result:
@@ -53,18 +54,19 @@ exome freqs
 '''
 def freqs(v,path_to_gnomad,mode='exome'):
     v = common_utils.clean_variant(v)
-    # pytabix does not support header yet. hard code it
+    # pysam does not support header yet. hard code it
     header = ['chrom','pos','id','ref','alt','quality','filter','info']
     chrom,pos,ref,alt = v.split('-')
     if mode == 'exome':
         file = os.path.join(path_to_gnomad,'vcf','exomes','gnomad.exomes.r2.0.1.sites.vcf.gz')
     elif mode == 'genome':
         file = os.path.join(path_to_gnomad,'vcf','genomes','gnomad.genomes.r2.0.1.sites.'+chrom+'.vcf.gz')
-    tb = tabix.open(file)
-    records = tb.query(chrom, int(pos)-1, int(pos))
+    tb = pysam.TabixFile(file)
+    records = tb.fetch(chrom, int(pos)-1, int(pos))
 
-    for r in records:
-        if not r: return None
+    for line in records:
+        if not line: return None
+        r = line.rstrip().split('\t')
         data = {a:b for a,b in zip(header,r)}
         # find the variant
         g_alts = data['alt'].split(',')
