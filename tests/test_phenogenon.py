@@ -30,7 +30,7 @@ class PhenogenonTestCase(unittest.TestCase):
         # expand ABCA4_SCN1A.fasta.gz if not already so
         test_ref_fasta = 'tests/data/ABCA4_SCN1A.fasta'
         if not os.path.isfile(test_ref_fasta):
-            subprocess.run([
+            subprocess.call([
                 'gunzip',
                 '-c',
                 'tests/data/ABCA4_SCN1A.fasta.gz',
