@@ -13,7 +13,6 @@ import itertools
 import copy
 import pandas as pd
 import numpy as np
-import tabix
 import subprocess
 from optparse import OptionParser
 sys.path.append('/cluster/project8/vyp/JingYu/git/phenopolis_analysis/commons')
