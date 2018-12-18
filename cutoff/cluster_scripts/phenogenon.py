@@ -13,7 +13,6 @@ from collections import defaultdict,Counter
 import pandas as pd
 import numpy as np
 import helper
-from sklearn.cluster import KMeans
 import itertools
 import copy
 import patient_map as PM
