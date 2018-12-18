@@ -4,7 +4,7 @@ import sys
 import shutil
 import filecmp
 import json
-import subprocess
+import gzip
 import numpy as np
 sys.path.append('cutoff')
 sys.path.append('cutoff/cluster_scripts')
@@ -30,12 +30,10 @@ class PhenogenonTestCase(unittest.TestCase):
         # expand ABCA4_SCN1A.fasta.gz if not already so
         test_ref_fasta = 'tests/data/ABCA4_SCN1A.fasta'
         if not os.path.isfile(test_ref_fasta):
-            subprocess.call([
-                'gunzip',
-                '-c',
-                'tests/data/ABCA4_SCN1A.fasta.gz',
-                '>{}'.format(test_ref_fasta),
-            ])
+            with open(test_ref_fasta, 'w') as outf:
+                with gzip.open('tests/data/ABCA4_SCN1A.fasta.gz','rt') as inf:
+                    for line in inf:
+                        outf.write(line)
 
         # hardcode all options
         self.input_options = dict(
