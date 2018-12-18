@@ -1,7 +1,6 @@
 '''
 '''
 from __future__ import print_function, division
-import tabix
 import gnomad_utils
 import subprocess
 from optparse import OptionParser
