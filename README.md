@@ -1,2 +1,2 @@
 # Phenogenon
-[![Build Status](https://travis-ci.org/phenopolis/phenopolis_analysis.svg?branch=master)](https://travis-ci.org/phenopolis/phenopolis_analysis)
+[![Build Status](https://travis-ci.com/phenopolis/phenogenon.svg?branch=master)](https://travis-ci.com/phenopolis/phenogenon)
