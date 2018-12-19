@@ -11,8 +11,8 @@ from collections import defaultdict,Counter
 from scipy import stats
 import gnomad_utils
 import helper
-sys.path.append('commons')
-import phenopolis_utils
+sys.path.append('lib/commons')
+from commons import phenopolis_utils
 import phenogenon as Pheno
 
 # MONGO = phenopolis_utils.get_mongo_collections()
@@ -404,7 +404,6 @@ def main(**kwargs):
     kwargs['patient_info'] = helper.get_snapshot(kwargs['patient_info_file'])
 
     # if there are symbols, turn them into ensembl ids
-    # genes = phenopolis_utils.symbols_to_ids(kwargs['genes'],MONGO['phenopolis_db'])
     pheno = Pheno.main(**kwargs)
     kwargs['data'] = pheno
     kwargs['patient_map'] = pheno.pop('patient_map')

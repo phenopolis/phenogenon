@@ -1,14 +1,20 @@
 # Phenogenon
 [![Build Status](https://travis-ci.com/phenopolis/phenogenon.svg?branch=master)](https://travis-ci.com/phenopolis/phenogenon)
 
-# Requirements
+# Installation
 
-External programs:
+
+## Standalone
+External programs you need to install:
 * tabix
 * bcftools
 * jq
 
-# Docker
+```
+pip install -r requirements.txt
+```
+
+### Docker
 
 Make sure you have docker running.
 The following will build and run docker image with all the dependencies.
