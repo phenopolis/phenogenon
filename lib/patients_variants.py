@@ -198,17 +198,6 @@ def get_chrom_genes_with_jq(chrom,json_file):
     result = subprocess.check_output(cmd+json_file,shell=True)
     return helper.split_iter(result)
 
-'''
-get coding variants from coding.tsv
-'''
-def get_coding_variants(f,chrom,start,stop):
-    tb = pysam.TabixFile(f)
-    result = set()
-    for line in tb.fetch(chrom,start,stop):
-        row = line.rstrip().split('\t')
-        result.add(row[2])
-    return result
-
 def remove_cis(patients_variants, genotype_df):
     '''
     # when two variants are in cis and both appear in one patient,
@@ -280,7 +269,6 @@ def main(**kwargs):
         'cadd_step',
         'cadd_min',
         'genon_sum_cutoff_coefficient',
-        'coding_variant_file',
         'cis_gap',
         }
     helper.check_args(compulsory_keys, kwargs, 'main')
@@ -339,10 +327,6 @@ def main(**kwargs):
         # no variants, continue
         return None
 
-    # get coding variants
-    if kwargs['remove_nc']:
-        coding_variant_file = kwargs['coding_variant_file'].format(chrom)
-        coding_variants = get_coding_variants(coding_variant_file,chrom,int(start),int(stop))
     'genon_sum_cutoff_coefficient',
     genotype_df,cover_df,gnomad_freqs = vcf_dfs
     # then get patients_variants, with variants annotated with
@@ -354,9 +338,7 @@ def main(**kwargs):
     patients_variants = get_patients_variants(**args)
     # remove noncoding?
     if kwargs['remove_nc']:
-        print(len(patients_variants['variants']))
-        helper.remove_noncoding(patients_variants,coding_variants)
-        print(len(patients_variants['variants']))
+        helper.remove_noncoding(patients_variants,kwargs)
     # if no variants left, skip
     if not patients_variants['variants']:
         return None

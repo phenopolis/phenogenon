@@ -10,8 +10,8 @@ sys.path.append('lib')
 sys.path.append('lib/commons')
 import common_utils
 
-# ABCA4: 1:94400000-94600000
-# SCN1A: 2:166844000-167007000
+#'ABCA4':'1:94458394-94586689'
+#'SCN1A':'2:166845671-166984524'
 class FakeOptions():
     def __init__(self, **kwargs):
         for key in kwargs:
@@ -20,6 +20,8 @@ class FakeOptions():
 class PhenogenonTestCase(unittest.TestCase):
     def setUp(self):
         self.tmp_folder = 'tests/data/tmp'
+        # for testing float
+        self.epsilon = 1e-4
         self.genes = {
                 'ABCA4':'1:94458394-94586689',
                 'SCN1A':'2:166845671-166984524',
@@ -41,6 +43,8 @@ class PhenogenonTestCase(unittest.TestCase):
             patient_mini_file = 'tests/data/test_patients_hpo_snapshot_mini.tsv',
             unrelated_file = 'tests/data/test_unrelated.tsv',
             coding_variant_file = 'tests/data/chr{}.coding.tsv.gz',
+            gtf = 'tests/data/ABCA4_SCN1A.GRCh37.75.gtf.gz',
+            exon_padding = 5,
             vcf_file = '',
             cadd_file = 'tests/data/CADD_ABCA4_SCN1A.vcf.gz',
             patient_info_file = 'tests/data/test_patients_hpo_snapshot.tsv',
@@ -83,7 +87,6 @@ class PhenogenonTestCase(unittest.TestCase):
             combine_pvalues_method = 'scaled_stouffer',
             stouffer_weights = [0.1, 0.5, 0.75, 1., 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
             hpo_mask = ['HP:0000007', 'HP:0000006', 'HP:0003745', 'HP:0000005'],
-
         )
 
     def tearDown(self):
@@ -128,7 +131,11 @@ class PhenogenonTestCase(unittest.TestCase):
                     C(x[i],y[i])
             else:
                 if x != y and not (np.isnan(x) and np.isnan(y)):
-                    raise ValueError('{} != {}'.format(x,y))
+                    try:
+                        if abs(float(x)-float(y)) > self.eplison:
+                            raise ValueError('{} != {}'.format(x,y))
+                    except ValueError:
+                        raise ValueError('{} != {}'.format(x,y))
         # ABCA4
         gene = 'ABCA4'
         self.input_options.update(dict(
