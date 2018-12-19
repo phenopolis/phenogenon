@@ -12,17 +12,17 @@ import common_utils
 
 #'ABCA4':'1:94458394-94586689'
 #'SCN1A':'2:166845671-166984524'
-def C(x,y):
+def C(x,y, epsilon):
     if isinstance(x,dict):
         for k in x:
-            C(x[k],y[k])
+            C(x[k],y[k],epsilon)
     elif isinstance(x, list):
         for i in range(len(x)):
-            C(x[i],y[i])
+            C(x[i],y[i],epsilon)
     else:
         if x != y and not (np.isnan(x) and np.isnan(y)):
             try:
-                if abs(float(x)-float(y)) > self.eplison:
+                if abs(float(x)-float(y)) > epsilon:
                     raise ValueError('{} != {}'.format(x,y))
             except ValueError:
                 raise ValueError('{} != {}'.format(x,y))
@@ -137,7 +137,7 @@ class PhenogenonTestCase(unittest.TestCase):
         del result['patients_variants']['cover_df']
         with open('tests/data/ABCA4.genon.json','rt') as inf:
             expected = json.load(inf)
-        C(result, expected)
+        C(result, expected, self.epsilon)
         # SCN1A
         gene = 'SCN1A'
         self.input_options.update(dict(
@@ -148,7 +148,7 @@ class PhenogenonTestCase(unittest.TestCase):
         del result['patients_variants']['cover_df']
         with open('tests/data/SCN1A.genon.json','rt') as inf:
             expected = json.load(inf)
-        C(result, expected)
+        C(result, expected, self.epsilon)
 
     def test_hgf(self):
         import goodness_of_fit
@@ -161,7 +161,7 @@ class PhenogenonTestCase(unittest.TestCase):
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/ABCA4.hgf.json','rt') as inf:
             expected = json.load(inf)
-        C(result, expected)
+        C(result, expected, self.epsilon)
 
         # SCN1A 2:166845671-166984524
         gene = 'SCN1A'
@@ -172,7 +172,7 @@ class PhenogenonTestCase(unittest.TestCase):
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/SCN1A.hgf.json','rt') as inf:
             expected = json.load(inf)
-        C(result, expected)
+        C(result, expected, self.epsilon)
 
 
 if __name__ == '__main__':
