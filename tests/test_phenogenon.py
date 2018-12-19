@@ -42,7 +42,6 @@ class PhenogenonTestCase(unittest.TestCase):
             gnomad_path = 'tests/data/gnomad_data',
             patient_mini_file = 'tests/data/test_patients_hpo_snapshot_mini.tsv',
             unrelated_file = 'tests/data/test_unrelated.tsv',
-            coding_variant_file = 'tests/data/chr{}.coding.tsv.gz',
             gtf = 'tests/data/ABCA4_SCN1A.GRCh37.75.gtf.gz',
             exon_padding = 5,
             vcf_file = '',
@@ -108,10 +107,6 @@ class PhenogenonTestCase(unittest.TestCase):
         else:
             return obj
         return obj
-
-    def test_get_coding_variants(self):
-        import get_coding_variants
-        pass
 
     def test_patients_variants(self):
         pass
