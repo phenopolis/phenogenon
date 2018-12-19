@@ -143,4 +143,6 @@ Explanation of output:
 }
 ```
 
-
+```
+python2 lib/goodness_of_fit.py  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymised.vcf.gz --output SCN1A.test.json
+```
