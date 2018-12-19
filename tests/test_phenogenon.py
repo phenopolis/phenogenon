@@ -12,10 +12,20 @@ import common_utils
 
 #'ABCA4':'1:94458394-94586689'
 #'SCN1A':'2:166845671-166984524'
-class FakeOptions():
-    def __init__(self, **kwargs):
-        for key in kwargs:
-            setattr(self,key,kwargs[key])
+def C(x,y):
+    if isinstance(x,dict):
+        for k in x:
+            C(x[k],y[k])
+    elif isinstance(x, list):
+        for i in range(len(x)):
+            C(x[i],y[i])
+    else:
+        if x != y and not (np.isnan(x) and np.isnan(y)):
+            try:
+                if abs(float(x)-float(y)) > self.eplison:
+                    raise ValueError('{} != {}'.format(x,y))
+            except ValueError:
+                raise ValueError('{} != {}'.format(x,y))
 
 class PhenogenonTestCase(unittest.TestCase):
     def setUp(self):
@@ -117,20 +127,6 @@ class PhenogenonTestCase(unittest.TestCase):
     def test_phenogenon(self):
         # it tests patients_variants and patient_map at the same time
         import phenogenon
-        def C(x,y):
-            if isinstance(x,dict):
-                for k in x:
-                    C(x[k],y[k])
-            elif isinstance(x, list):
-                for i in range(len(x)):
-                    C(x[i],y[i])
-            else:
-                if x != y and not (np.isnan(x) and np.isnan(y)):
-                    try:
-                        if abs(float(x)-float(y)) > self.eplison:
-                            raise ValueError('{} != {}'.format(x,y))
-                    except ValueError:
-                        raise ValueError('{} != {}'.format(x,y))
         # ABCA4
         gene = 'ABCA4'
         self.input_options.update(dict(
@@ -165,11 +161,7 @@ class PhenogenonTestCase(unittest.TestCase):
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/ABCA4.hgf.json','rt') as inf:
             expected = json.load(inf)
-        for key in result:
-            if isinstance(result[key],dict):
-                self.assertDictEqual(result[key], expected[key])
-            else:
-                self.assertEqual(result[key], expected[key])
+        C(result, expected)
 
         # SCN1A 2:166845671-166984524
         gene = 'SCN1A'
@@ -180,22 +172,7 @@ class PhenogenonTestCase(unittest.TestCase):
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/SCN1A.hgf.json','rt') as inf:
             expected = json.load(inf)
-        for key in result:
-            if isinstance(result[key],dict):
-                self.assertDictEqual(result[key], expected[key])
-            else:
-                self.assertEqual(result[key], expected[key])
-
-    def test_test(self):
-        import patient_map
-        import patients_variants
-        # ABCA4
-        pass
-        #result['patients'] = dict(result['patients'])
-        #with open('tests/data/ABCA4.pv.json', 'rt') as inf:
-        #    l = inf.read().decode('ascii')
-        #    expected = json.loads(l)
-        #self.assertDictEqual(result, expected['ENSG00000198691'])
+        C(result, expected)
 
 
 if __name__ == '__main__':

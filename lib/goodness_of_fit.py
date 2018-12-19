@@ -421,6 +421,10 @@ if __name__ == '__main__':
                       dest="output",
                       help="output file name?")
 
+    parser.add_option("--vcf_file",
+                      dest="vcf_file",
+                      help="bgzipped and tabix-indexed vcf.gz")
+
     parser.add_option("--range",
                       dest="range",
                       help="genome range to calculate? e.g. 2:4000-6000")
@@ -430,6 +434,7 @@ if __name__ == '__main__':
         sys.exit()
     args = dict(
         range = options.range,
+        vcf_file = options.vcf_file,
         # known gene inheritance mode. if provided, no need to infer from data
         #  for sometimes it does make mistakes such that for CERKL
         #gene_inheritance_mode = dict(

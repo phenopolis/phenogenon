@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import sys
 import pysam
 import os
-sys.path.append('commons')
+sys.path.append('lib/commons')
 import common_utils
 
 class BadVariantException(Exception): pass
