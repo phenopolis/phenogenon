@@ -37,9 +37,6 @@ coverage run --omit=*/site-packages/*,*/tests/* -m unittest discover -s tests
 Example:
 ```
 python2 lib/goodness_of_fit.py  --range 1:94458394-94586689 --vcf_file tests/data/ABCA4.anonymised.vcf.gz --output ABCA4.test.json
-Lines   total/split/realigned/skipped:  711/14/0/0
-Lines   total/split/realigned/skipped:  731/0/11/0
-==done==
 ```
 Produces `ABCA4.test.json`.
 
