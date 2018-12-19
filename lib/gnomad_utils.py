@@ -2,8 +2,8 @@ from __future__ import print_function, division
 import sys
 import pysam
 import os
-sys.path.append('commons')
-import common_utils
+sys.path.append('lib')
+from commons import common_utils
 
 class BadVariantException(Exception): pass
 #path = '/cluster/project8/vyp/gnomad_data'
