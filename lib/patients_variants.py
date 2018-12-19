@@ -9,7 +9,7 @@ import pysam
 import subprocess
 from optparse import OptionParser
 import sys
-sys.path.append('commons')
+sys.path.append('lib/commons')
 import gnomad_utils
 import phenopolis_utils
 import os
@@ -21,7 +21,6 @@ import helper
 import itertools
 import copy
 
-# MONGO = phenopolis_utils.get_mongo_collections()
 
 def read_vcf(vcf_f):
     '''

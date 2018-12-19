@@ -17,7 +17,6 @@ import itertools
 import copy
 import patient_map as PM
 
-#MONGO = phenopolis_utils.get_mongo_collections()
 
 def get_hpo_from_json(f):
     '''
@@ -53,10 +52,9 @@ def get_chrom_genes(chrom,fields, db):
     return gene_ranges
 
 '''
-when mongodb is not available!
 '''
 def get_chrom_genes_with_jq(chrom,json_file):
-    cmd = """/share/apps/genomics/jq -c '[.gene_id, .gene_name, .chrom, .start, .stop, .xstart, .xstop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4],xstart:.[5],xstop:.[6]}' """ % chrom
+    cmd = """jq -c '[.gene_id, .gene_name, .chrom, .start, .stop, .xstart, .xstop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4],xstart:.[5],xstop:.[6]}' """ % chrom
     result = subprocess.check_output(cmd+json_file,shell=True)
     return helper.split_iter(result)
 
@@ -102,8 +100,6 @@ def main(**kwargs):
     # add cohort info into patient_mini
     # get hpodb from json
     hpo_db = get_hpo_from_json(kwargs['hpo_json'])
-    # get genes, if not provided. get all gene_ids from mongodb, \
-            #if provided, convert to gene_id
     fields = {
             'gene_id':1,
             'gene_name':1,

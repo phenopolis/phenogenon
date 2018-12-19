@@ -15,7 +15,6 @@ sys.path.append('lib/commons')
 from commons import phenopolis_utils
 import phenogenon as Pheno
 
-# MONGO = phenopolis_utils.get_mongo_collections()
 
 class Goodness_of_fit:
     def __init__(self,genons):
