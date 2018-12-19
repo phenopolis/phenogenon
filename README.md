@@ -4,11 +4,11 @@
 # Docker
 
 ```
-bash docker-build.sh
+bash build-docker.sh
 ```
 
 ```
-bash docker-run.sh
+bash run-docker.sh
 ```
 
 ```
