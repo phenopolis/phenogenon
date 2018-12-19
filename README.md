@@ -1,6 +1,16 @@
 # Phenogenon
 [![Build Status](https://travis-ci.com/phenopolis/phenogenon.svg?branch=master)](https://travis-ci.com/phenopolis/phenogenon)
 
+
+As genome sequencing is increasingly applied to molecular diagnosis of rare Mendelian disorders, large number of patients with diverse phenotypes have their genomic and phenotypic data pooled together to uncover new genotype - phenotype relations. We introduce Phenogenon (https://github.com/phenopolis/phenogenon/) , a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction. By using a divide and conquer approach, we demonstrate here that Phenogenon is able to uncover true gene to phenotype relations, such as:
+* "ABCA4 – Macular dystrophy"
+* "SCN1A – Seizures".
+
+Additionally, it accurately infers mode of inheritance, such as a recessive mode of inheritance in the case of the "ABCA4 – Macular dystrophy" relationship and a dominant mode of inheritance with the "SCN1A – Seizures" relationship.
+
+We also found that CADD has more power to detect early-onset rare genetic diseases than late-onset diseases.
+
+
 # Installation
 
 
