@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ttest_1samp, binom, gamma
 import subprocess
+import pysam
 import sys
 import itertools
 import math
@@ -219,14 +220,68 @@ def remove_batch_artefacts(data, bad_vs, patient_mini, mode='all'):
             result['patients'][k1] = this_vs
     return result
 
-def remove_noncoding(data, coding_variants):
+def remove_noncoding_deprecated(data, coding_variants, params):
+    nvc = set()
     for v in data['variants'].keys():
         if v not in coding_variants:
+            nvc.add(v)
             data['variants'].pop(v)
     for p in data['patients'].keys():
         for v in list(data['patients'][p]):
             if v not in coding_variants:
                 data['patients'][p].remove(v)
+
+
+'''
+remove non-coding variants from data
+'''
+def remove_noncoding(data, params):
+    # get range
+    chrom, crange = params['range'].split(':')
+    start, stop = [int(i) for i in crange.split('-')]
+    # get all exons from gtf
+    exons = []
+    tb = pysam.TabixFile(params['gtf'])
+    for line in tb.fetch(chrom, start, stop):
+        row = line.rstrip().split('\t')
+        # if exon?
+        if row[2] != 'CDS' or row[1] != 'protein_coding':
+            continue
+        start = int(row[3]) - params['exon_padding']
+        stop = int(row[4]) + params['exon_padding']
+        exons.append({
+            'start': start,
+            'stop': stop,
+            'len': stop - start + 1,
+        })
+
+
+    # get list of variants that are non-coding
+    ncv = set()
+    for v in data['variants']:
+        nc = True
+        chrom,pos,ref,_ = v.split('-')
+        start = int(pos)
+        stop = start + len(ref) - 1
+        #start and end overlaps with any exons?
+        for exon in exons:
+            if exon['start'] > stop:
+                break
+            # overlap?
+            if len(ref) + exon['len'] > max(exon['stop'],stop) - min(exon['start'],start) + 1:
+                nc = False
+                break
+        if nc:
+            ncv.add(v)
+    # remove nc variants from data
+    for v in data['variants'].keys():
+        if v in ncv:
+            data['variants'].pop(v)
+    for p in data['patients'].keys():
+        for v in list(data['patients'][p]):
+            if v in ncv:
+                data['patients'][p].remove(v)
+
 
 '''
 add cadd from the already annotated cadd file, using tabix
