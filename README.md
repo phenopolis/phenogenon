@@ -29,7 +29,6 @@ You can read our preprint here: https://www.biorxiv.org/content/early/2018/07/11
 External programs you need to install:
 * tabix
 * bcftools
-* jq
 
 ```
 pip install -r requirements.txt

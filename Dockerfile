@@ -35,7 +35,6 @@ RUN apt-get install -y python-pip
 RUN apt-get install -y wget
 RUN apt-get install -y git
 RUN apt-get install -y tabix
-RUN apt-get install -y jq
 RUN apt-get install -y bcftools
 
 RUN pip install --upgrade pip

@@ -1,24 +1,175 @@
-from collections import Counter,defaultdict
+'''
+some common functions used across different analyses
+'''
+from __future__ import print_function, division
+# python3 is configparser, python2 is ConfigParser
+try:
+    import ConfigParser
+except ModuleNotFoundError:
+    import configparser as ConfigParser
+import os
+import errno
+import sys
 import re
+import itertools
+from collections import Counter, defaultdict
+import logging
 import numpy as np
 import pandas as pd
 from scipy.stats import ttest_1samp, binom, gamma
 import subprocess
 import pysam
 import sys
-import itertools
 import math
 import fisher
 
+'''
+constants
+'''
+VALID_CHROMOSOMES = [str(i) for i in range(1, 23)] + ['X', 'Y']
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: 
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+'''
+request ensembl for bases based on location
+'''
+def find_bases(chrom,start,end=None,build='hg19',strand=1):
+    # translate build
+    if build=='hg19':
+        server = "http://grch37.rest.ensembl.org"
+    elif build=='hg38':
+        server = "http://rest.ensembl.org"
+    end = end or start
+    ext = '''/sequence/region/human/%(chrom)s:%(start)s..%(end)s:%(strand)s''' % locals()
+    attempt = 5
+    while attempt:
+        try:
+            r = requests.get(server+ext, headers={'Content-Type':'application/json' })
+            time.sleep(0.05)
+            if r.ok:
+                break
+        except requests.HTTPError:
+            print('query ensembl HTTPError, retry')
+            attempt -= 1
+            time.sleep(2)
+        except requests.ConnectionError:
+            print('query ensembl ConnectionError, retry')
+            attempt -= 1
+            time.sleep(2)
+    if r.status_code == 404: return None
+    '''
+    if not r.ok:
+        return r.raise_for_status()
+    '''
+    decoded = r.json()
+    return str(decoded['seq'])
+
+def clean_variant(v,build='hg19',human_ref_pysam=None):
+    # sometimes variant has funny format, which has more - than expected, such as 1-117122294---TCT.
+    #  use find_bases to fill in the gap if human_ref_pysam is not provided
+    if v.count('-') == 4:
+        if v[-1] == '-':
+            # deletion
+            chrom,pos,ref,rubbish,rubbish = v.split('-')
+            pos = int(pos)-1
+            if human_ref_pysam:
+                common_base = human_ref_pysam.fetch(chrom, pos-1, pos)
+            else:
+                common_base = find_bases(chrom,pos,build=build)
+            ref = common_base + ref
+            alt = common_base
+        else:
+            # insertion
+            chrom,pos,ref,rubbish,alt = v.split('-')
+            pos = int(pos)
+            if human_ref_pysam:
+                common_base = human_ref_pysam.fetch(chrom, pos-1, pos)
+            else:
+                common_base = find_bases(chrom,pos,build=build)
+            ref = common_base
+            alt = common_base + alt
+    else:
+        chrom,pos,ref,alt = v.split('-')
+        pos = int(pos)
+    if len(ref) < len(alt):
+        ran = range(len(ref))
+    else:
+        ran = range(len(alt))
+    # insert
+    for e in ran:
+        ref_e = len(ref) - e - 1
+        alt_e = len(alt) - e - 1
+        if ref[ref_e] != alt[alt_e]: break
+    for b in ran:
+        if ref[b] != alt[b] or len(ref[b:ref_e+1]) == 1 or len(alt[b:alt_e+1]) == 1:
+            break
+    return '-'.join([chrom,str(pos+b),ref[b:ref_e+1],alt[b:alt_e+1]])
+'''
+parse config file, and make config global. If test, set DB_HOST as 'localhost'
+'''
+
+
+def _parse_config():
+    # return {'section':{'key1':'value1'...},...}
+    config = ConfigParser.ConfigParser()
+
+    config.read('configure.cfg')
+    result = {}
+    for section in config.sections():
+        options = config.options(section)
+        result[section] = {}
+        for option in options:
+            value = config.get(section, option)
+            if value in ('true', 'True'):
+                value = True
+            elif value in ('false', 'False'):
+                value = False
+            elif value.isdigit():
+                value = int(value)
+            elif ',' in value:
+                value = re.split(r', *', value)
+                try:
+                    value = [float(i) for i in value]
+                except ValueError:
+                    pass
+            else:
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass
+            result[section][option] = value
+    return result
+
+
+OFFLINE_CONFIG = _parse_config()
+# log to file
+logging.basicConfig(filename=OFFLINE_CONFIG['debug']['log_file'],
+                    level=getattr(logging, OFFLINE_CONFIG['debug']['log_level'].upper()))
+
 
 '''
-get Ph for all HPO terms
+some hpo ids are obsolete
+this is a copy of lookups.py's replace_hpo. lookups.py is not working atm
 '''
-def get_phs(p_info):
-    result = Counter()
-    for k,v in p_info.items():
-        result.update(v['hpo'])
-    return result
+
+
+def replace_hpo(hpo_db, hpo):
+    # some hpo_ids are obsolete.
+    record = hpo_db.hpo.find_one({'id': hpo[0]})
+    if not record:
+        print('no record in replace_hpo')
+        print(hpo)
+    if 'replaced_by' in record:
+        new = hpo_db.hpo.find_one({'id': record['replaced_by'][0]})
+        return [new['id'][0], new['name'][0]]
+    else:
+        return hpo
+
 
 '''
 get all ancestor nodes of a given hpo_id.
@@ -42,18 +193,40 @@ def get_hpo_ancestors(hpo_db, hpo_id):
     return hpo
 
 '''
-get minimised set of HPO terms
+get common ancestors of two given hpos
 '''
-def hpo_minimum_set(hpo_db, hpo_ids):
+
+
+def get_hpo_common_ancestors(hpo_db, h1, h2):
+    # return a list of hpo ids for h1 and h2's common ancestors
+    a1 = get_hpo_ancestors(hpo_db, h1)
+    a2 = get_hpo_ancestors(hpo_db, h2)
+    an1 = []
+    an2 = []
+    for a in a1:
+        an1.extend(a['id'])
+    for a in a2:
+        an2.extend(a['id'])
+    return list(set(an1) & set(an2))
+
+
+'''
+minimise a list of hpos
+'''
+
+
+def hpo_minimum_set(hpo_db, hpo_ids=[]):
     '''
     minimize the hpo sets
+    results = {'HP:0000505': [ancestors]}
     '''
     hpo_ids = list(set(hpo_ids))
-    results = dict([(hpo_id, [ h['id'][0] for h in get_hpo_ancestors(hpo_db, hpo_id)],) for hpo_id in hpo_ids])
+    results = dict([(hpo_id, [h['id'][0] for h in get_hpo_ancestors(
+        hpo_db, hpo_id)],) for hpo_id in hpo_ids])
     # minimise
     bad_ids = []
     for i in range(len(hpo_ids)):
-        for j in range(i+1,len(hpo_ids)):
+        for j in range(i+1, len(hpo_ids)):
             if hpo_ids[i] in results[hpo_ids[j]]:
                 # i is j's ancestor, remove
                 bad_ids.append(hpo_ids[i])
@@ -64,21 +237,13 @@ def hpo_minimum_set(hpo_db, hpo_ids):
     return list(set(hpo_ids) - set(bad_ids))
 
 '''
-given positive sets, select negative sets from the overall pool
+get Ph for all HPO terms
 '''
-def get_negative_hpos(hpo_db,ps,hpos):
-    result = []
-    for h1 in hpos:
-        bad = 0
-        for h2 in ps:
-            A = h1 in [i['id'][0] for i in get_hpo_ancestors(hpo_db, h2)]
-            B = h2 in [i['id'][0] for i in get_hpo_ancestors(hpo_db, h1)]
-            if A or B:
-                bad = 1
-                break
-        if not bad:
-            result.append(h1)
-    return hpo_minimum_set(hpo_db,result)
+def get_phs(p_info):
+    result = Counter()
+    for k,v in p_info.items():
+        result.update(v['hpo'])
+    return result
 
 '''
 iter through string separated by \n
@@ -520,7 +685,6 @@ def adjust_diff_p(patient_map,hz,gamma_k,gamma_scale):
     adj_m = np.zeros(hz[hz.keys()[0]]['diff_p'].shape)
     for k,v in patient_map.items():
         adj_m[k[0]][k[1]] = gamma.cdf(len(v[0]),gamma_k,scale=gamma_scale)
-    for k1,v1 in hz.items():
+    for v1 in hz.values():
         v1['diff_p'] = np.multiply(v1['diff_p'], adj_m)
     return hz
-

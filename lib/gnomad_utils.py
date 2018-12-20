@@ -3,7 +3,7 @@ import sys
 import pysam
 import os
 sys.path.append('lib')
-from commons import common_utils
+import helper
 
 class BadVariantException(Exception): pass
 #path = '/cluster/project8/vyp/gnomad_data'
@@ -13,7 +13,7 @@ POPS = ('AFR','NFE','AMR','EAS','ASJ','SAS','OTH','FIN')
 coverage, look at different parts of the ref
 '''
 def coverage(v,path_to_gnomad,mode='exome'):
-    v = common_utils.clean_variant(v)
+    v = helper.clean_variant(v)
     # pysam does not support header yet. hard code it
     header = ['chrom','pos','mean','median',1,5,10,15,20,25,30,50,100,]
     chrom,pos,ref,alt = v.split('-')
@@ -53,7 +53,7 @@ def coverage(v,path_to_gnomad,mode='exome'):
 exome freqs
 '''
 def freqs(v,path_to_gnomad,mode='exome'):
-    v = common_utils.clean_variant(v)
+    v = helper.clean_variant(v)
     # pysam does not support header yet. hard code it
     header = ['chrom','pos','id','ref','alt','quality','filter','info']
     chrom,pos,ref,alt = v.split('-')
@@ -72,7 +72,7 @@ def freqs(v,path_to_gnomad,mode='exome'):
         g_alts = data['alt'].split(',')
         alt_ind = None
         for ind,this_alt in enumerate(g_alts):
-            v_id = common_utils.clean_variant('-'.join([data['chrom'],data['pos'],data['ref'],this_alt]))
+            v_id = helper.clean_variant('-'.join([data['chrom'],data['pos'],data['ref'],this_alt]))
             if v_id == v:
                 alt_ind = ind
         if alt_ind == None:

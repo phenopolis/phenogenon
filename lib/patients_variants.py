@@ -8,16 +8,13 @@ from __future__ import print_function, division
 import pysam
 import subprocess
 from optparse import OptionParser
-import sys
-sys.path.append('lib/commons')
 import gnomad_utils
-import phenopolis_utils
+import helper
 import os
 import json
 from collections import defaultdict,Counter
 import pandas as pd
 import numpy as np
-import helper
 import itertools
 import copy
 
@@ -176,27 +173,6 @@ def get_vcf_df(**kwargs):
     genotype_df.drop(bad_ps,inplace=True,axis=1)
     return (genotype_df, cover_df, gnomad_freqs)
 
-'''
-given chromosome and db, return gene_ranges
-'''
-def get_chrom_genes(chrom,fields, db):
-    # give chrom numbers, get all genes on them
-
-    chrom = str(chrom)
-    if chrom not in phenopolis_utils.VALID_CHROMOSOMES:
-        raise ValueError('Error: %s is not a valid chromosome!' % chrom)
-    gene_ranges = db.genes.find({'chrom':chrom},fields,no_cursor_timeout=True)
-
-    return gene_ranges
-
-'''
-when mongodb is not available!
-'''
-def get_chrom_genes_with_jq(chrom,json_file):
-    cmd = """/share/apps/genomics/jq -c '[.gene_id, .gene_name, .chrom, .start, .stop, .xstart, .xstop] | select(.[2]=="%s")|{gene_id:.[0],gene_name:.[1],chrom:.[2],start:.[3],stop:.[4],xstart:.[5],xstop:.[6]}' """ % chrom
-    result = subprocess.check_output(cmd+json_file,shell=True)
-    return helper.split_iter(result)
-
 def remove_cis(patients_variants, genotype_df):
     '''
     # when two variants are in cis and both appear in one patient,
@@ -215,7 +191,7 @@ def remove_cis(patients_variants, genotype_df):
     sub_df[sub_df > 1] = 1
     sub_df[sub_df < 0] = 0
     co_occur = sub_df.dot(sub_df.T)
-    for p,v in patients_variants['r_patients'].items():
+    for v in patients_variants['r_patients'].values():
         bad_vs = set()
         # You don't want to remove hom variants!
         this_rare_variants = Counter([i for i in v if i in rare_variants])
@@ -302,8 +278,6 @@ def main(**kwargs):
     # for each gene, get all valid variants/patients according to p/v_cutoff,
     # annotate using gnomad
     # use PV to record patients_variants
-    PV = {}
-    coding_variants = None
     chrom, crange = kwargs['range'].split(':')
     start, stop = crange.split('-')
     # first parse vcf file to get genotype and coverage for each variant
@@ -394,7 +368,7 @@ if __name__ == '__main__':
         output = options.output,
     )
     # update args with commons.cfg
-    args.update(phenopolis_utils.OFFLINE_CONFIG['generic'])
-    args.update(phenopolis_utils.OFFLINE_CONFIG['phenogenon'])
+    args.update(helper.OFFLINE_CONFIG['generic'])
+    args.update(helper.OFFLINE_CONFIG['phenogenon'])
     main(**args)
     print('==done==')

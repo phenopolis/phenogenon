@@ -11,8 +11,6 @@ from collections import defaultdict,Counter
 from scipy import stats
 import gnomad_utils
 import helper
-sys.path.append('lib/commons')
-from commons import phenopolis_utils
 import phenogenon as Pheno
 
 
@@ -398,7 +396,6 @@ def combine_pvalues(pvalues, method='fisher', weights=None):
 
 def main(**kwargs):
     kwargs['hpo_db'] = get_hpo_from_json(kwargs['hpo_json'])
-    result = {}
     # get patient_mini and patient_info
     kwargs['patient_info'] = helper.get_snapshot(kwargs['patient_info_file'])
 
@@ -450,8 +447,8 @@ if __name__ == '__main__':
         #    ),
     )
     # update args with commons.cfg
-    args.update(phenopolis_utils.OFFLINE_CONFIG['generic'])
-    args.update(phenopolis_utils.OFFLINE_CONFIG['phenogenon'])
+    args.update(helper.OFFLINE_CONFIG['generic'])
+    args.update(helper.OFFLINE_CONFIG['phenogenon'])
     args['N'] = args.pop('n')
 
     # get result and write to output

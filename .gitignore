@@ -8,4 +8,5 @@ hpo/*.sh
 tests/data/ABCA4_SCN1A.fasta
 tests/data/ABCA4_SCN1A.fasta.fai
 *.log
+setup.cfg
 tests/data/unnecessary
