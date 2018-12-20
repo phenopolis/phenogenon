@@ -103,30 +103,3 @@ def main(**kwargs):
         'patients_variants': patients_variants,
         'NP': NP,
     }
-
-
-if __name__ == '__main__':
-    # in the end some of the args have to go to the config
-    usage = "usage: %prog [options] arg1 arg2"
-    parser = OptionParser(usage=usage)
-
-    parser.add_option("--range",
-                      dest="range",
-                      help="which genome range to process?")
-    parser.add_option("--output",
-                      dest="output",
-                      help="output file name?")
-    (options, args) = parser.parse_args()
-    args = dict(
-        #genes = ('ABCA4','CERKL','SCN1A','GUCY2D','USH2A','PROM1','TERT','CNGB1','CRB1','IMPG2','RPGR','SDK1'),
-        range=options.range,
-        output=options.output,
-    )
-    # update args with commons.cfg
-    args.update(helper.OFFLINE_CONFIG['generic'])
-    args.update(helper.OFFLINE_CONFIG['phenogenon'])
-    result = main(**args)
-    # write everything to output
-    with open(args['output'], 'wb') as outf:
-        json.dump(result, outf)
-    print('==done==')

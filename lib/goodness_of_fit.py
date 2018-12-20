@@ -430,21 +430,6 @@ if __name__ == '__main__':
     args = dict(
         range = options.range,
         vcf_file = options.vcf_file,
-        # known gene inheritance mode. if provided, no need to infer from data
-        #  for sometimes it does make mistakes such that for CERKL
-        #gene_inheritance_mode = dict(
-        #    ABCA4 = 'r',
-        #    CERKL = 'r',
-        #    SCN1A = 'd',
-        #    GUCY2D = 'd',
-        #    USH2A = 'r',
-        #    PROM1 = 'd',
-        #    TERT = 'd',
-        #    CNGB1 = 'r',
-        #    CRB1 = 'r',
-        #    IMPG2 = 'r',
-        #    RPGR = 'r',
-        #    ),
     )
     # update args with commons.cfg
     args.update(helper.OFFLINE_CONFIG['generic'])
