@@ -5,15 +5,17 @@
 Phenogenon is a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction.
 
 Given:
-* a genotype vcf file
-* 
-*
+* a genotype vcf file (such as `tests/data/ABCA4.anonymised.vcf.gz`)
+* a list of unrelated individuals (such as `tests/data/test_unrelated.tsv`)
+* HPO dictionary (such as `tests/data/new-hpo-hpo.json`)
+* a CADD score file (such as `tests/data/CADD_ABCA4_SCN1A.vcf.gz`)
+* a patient-hpo file (such as `tests/data/test_patients_hpo_snapshot.tsv`)
 
 Phenogenon is able to uncover true gene to phenotype relations, such as:
 * "ABCA4 – Macular dystrophy"
 * "SCN1A – Seizures".
 
-Additionally, it accurately infers mode of inheritance, such as:
+Additionally, it accurately infers mode of inheritance (moi), such as:
 * recessive mode of inheritance in the case of the "ABCA4 – Macular dystrophy"
 * dominant mode of inheritance with the "SCN1A – Seizures" relationship."
 
@@ -60,8 +62,11 @@ python2 lib/goodness_of_fit.py  --range 1:94458394-94586689 --vcf_file tests/dat
 Produces `ABCA4.test.json`.
 
 Explanation of output:
-```
+```python
 {
+  # "r": recessive moi, "d": dominant moi
+  # genon_hratios [0,1] look at how effective (relatively) rare variants (<0.00025) contribute to hgf
+  # 1: very effective; 0: not at all!
   "genon_hratios": {
     "r": {
       "HP:0007754": 0.8046670602618868
@@ -70,17 +75,27 @@ Explanation of output:
       "HP:0007754": 0.7483526819524269
     }
   },
+  # genon_vratios [0,1] look at how effective (relatively) variants with CADD phred score >=15 contribute to hgf
+  # 1: very effective; 0: not at all!
   "genon_vratios": {
     "r": {
+      # macular dystrophy
       "HP:0007754": 0.8851477859029983
     },
     "d": {
       "HP:0007754": 0.9594599287088905
     }
   },
+  # predicted_moi > 0: recessive; predicted_moi < 0: dominant
   "predicted_moi": 0.8872573775123538,
+
+  # pop_curse_flags look at per moi per HPO level.
+  # it reports if certain POP specific variants are predominantly enriched in a group with moi/HPO
   "pop_curse_flags": {
     "r": {
+      # e.g. we found patients with recessive/HP:0004329 tend to carry variants v1,v2,v3,v4
+      # and v1,v2,v3,v4 seem to have a Jewish descent (inferred from gnomad), it then raises a 
+      # ASJ flag.
       "HP:0004329": [
         "ASJ"
       ],
@@ -139,6 +154,7 @@ Explanation of output:
       ]
     }
   },
+  # this is the goodness_of_fit score. It only reports HPOs that are most relevant.
   "hgf": {
     "r": {
       "HP:0007754": 10.293977466877369
@@ -147,10 +163,12 @@ Explanation of output:
       "HP:0007754": 12.581133080136787
     }
   },
+  # number of patients found to carry at least two variants ("r") and at least one variant ("d")
   "NP": {
     "r": 51,
     "d": 187
   },
+  # genon_sratios: not very relevant!
   "genon_sratios": {
     "r": {
       "HP:0007754": 0.6504054838971388
@@ -166,7 +184,7 @@ Example 2:
 python2 lib/goodness_of_fit.py  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymised.vcf.gz --output SCN1A.test.json
 ```
 Explain output:
-```
+```python
 {
   "genon_hratios": {
     "r": {
@@ -186,6 +204,7 @@ Explain output:
       "HP:0001250": 0.9860913529587728
     }
   },
+  # dominant moi, predicted_moi < 0
   "predicted_moi": -67.76587193983218,
   "pop_curse_flags": {
     "r": {},
@@ -197,6 +216,7 @@ Explain output:
       "HP:0001250": 2.514407022516984
     },
     "d": {
+      # seizures
       "HP:0001250": 74.66686039643339
     }
   },
