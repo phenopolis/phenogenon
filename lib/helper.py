@@ -35,67 +35,10 @@ def mkdir_p(path):
     except OSError as exc: 
         if exc.errno == errno.EEXIST and os.path.isdir(path):
             pass
-'''
-request ensembl for bases based on location
-'''
-def find_bases(chrom,start,end=None,build='hg19',strand=1):
-    # translate build
-    if build=='hg19':
-        server = "http://grch37.rest.ensembl.org"
-    elif build=='hg38':
-        server = "http://rest.ensembl.org"
-    end = end or start
-    ext = '''/sequence/region/human/%(chrom)s:%(start)s..%(end)s:%(strand)s''' % locals()
-    attempt = 5
-    while attempt:
-        try:
-            r = requests.get(server+ext, headers={'Content-Type':'application/json' })
-            time.sleep(0.05)
-            if r.ok:
-                break
-        except requests.HTTPError:
-            print('query ensembl HTTPError, retry')
-            attempt -= 1
-            time.sleep(2)
-        except requests.ConnectionError:
-            print('query ensembl ConnectionError, retry')
-            attempt -= 1
-            time.sleep(2)
-    if r.status_code == 404: return None
-    '''
-    if not r.ok:
-        return r.raise_for_status()
-    '''
-    decoded = r.json()
-    return str(decoded['seq'])
 
-def clean_variant(v,build='hg19',human_ref_pysam=None):
-    # sometimes variant has funny format, which has more - than expected, such as 1-117122294---TCT.
-    #  use find_bases to fill in the gap if human_ref_pysam is not provided
-    if v.count('-') == 4:
-        if v[-1] == '-':
-            # deletion
-            chrom,pos,ref,rubbish,rubbish = v.split('-')
-            pos = int(pos)-1
-            if human_ref_pysam:
-                common_base = human_ref_pysam.fetch(chrom, pos-1, pos)
-            else:
-                common_base = find_bases(chrom,pos,build=build)
-            ref = common_base + ref
-            alt = common_base
-        else:
-            # insertion
-            chrom,pos,ref,rubbish,alt = v.split('-')
-            pos = int(pos)
-            if human_ref_pysam:
-                common_base = human_ref_pysam.fetch(chrom, pos-1, pos)
-            else:
-                common_base = find_bases(chrom,pos,build=build)
-            ref = common_base
-            alt = common_base + alt
-    else:
-        chrom,pos,ref,alt = v.split('-')
-        pos = int(pos)
+def clean_variant(v):
+    chrom,pos,ref,alt = v.split('-')
+    pos = int(pos)
     if len(ref) < len(alt):
         ran = range(len(ref))
     else:
@@ -112,7 +55,6 @@ def clean_variant(v,build='hg19',human_ref_pysam=None):
 '''
 parse config file, and make config global. If test, set DB_HOST as 'localhost'
 '''
-
 
 def _parse_config():
     # return {'section':{'key1':'value1'...},...}
@@ -193,28 +135,8 @@ def get_hpo_ancestors(hpo_db, hpo_id):
     return hpo
 
 '''
-get common ancestors of two given hpos
-'''
-
-
-def get_hpo_common_ancestors(hpo_db, h1, h2):
-    # return a list of hpo ids for h1 and h2's common ancestors
-    a1 = get_hpo_ancestors(hpo_db, h1)
-    a2 = get_hpo_ancestors(hpo_db, h2)
-    an1 = []
-    an2 = []
-    for a in a1:
-        an1.extend(a['id'])
-    for a in a2:
-        an2.extend(a['id'])
-    return list(set(an1) & set(an2))
-
-
-'''
 minimise a list of hpos
 '''
-
-
 def hpo_minimum_set(hpo_db, hpo_ids=[]):
     '''
     minimize the hpo sets
@@ -385,18 +307,6 @@ def remove_batch_artefacts(data, bad_vs, patient_mini, mode='all'):
             result['patients'][k1] = this_vs
     return result
 
-def remove_noncoding_deprecated(data, coding_variants, params):
-    nvc = set()
-    for v in data['variants'].keys():
-        if v not in coding_variants:
-            nvc.add(v)
-            data['variants'].pop(v)
-    for p in data['patients'].keys():
-        for v in list(data['patients'][p]):
-            if v not in coding_variants:
-                data['patients'][p].remove(v)
-
-
 '''
 remove non-coding variants from data
 '''
@@ -552,6 +462,7 @@ def get_patients(**kwargs):
     if not {'phase','cis_gap'} - set(kwargs.keys()):
         msg = 'get_patients needs at least one argument \
                 from (phase, cis_gap)'
+        raise ValueError(msg)
     # add some defaults
     default = dict(
             miss_cutoff = 0.5,
@@ -650,41 +561,3 @@ def phenogenon(**kwargs):
                 ).right_tail
         logp_df[k[0]][k[1]] = pval
     return logp_df
-
-
-# get the mean different between positive set of HPOs and negative set of HPOs
-def get_diff(ps,ns,z):
-    if not ps or not ns:
-        return None
-    result = {i:None for i in ps}
-    for h in ps:
-        mean = np.zeros((len(z[h]),len(z[h][0])))
-        p = np.zeros((len(z[h]),len(z[h][0])))
-        for ind1,i1 in enumerate(mean):
-            for ind2,i2 in enumerate(i1):
-                pos = z[h][ind1][ind2]
-                neg = []
-                for k,v in z.items():
-                    if k in ns:
-                        neg.append(v[ind1][ind2])
-                # update mean
-                mean[ind1][ind2] = pos - np.mean(neg)
-                # update p
-                t = ttest_1samp(neg,pos)
-                pv = (t.statistic > 0) - np.sign(t.statistic) * t.pvalue / 2.
-                p[ind1][ind2] = 0 if pd.isnull(pv) else -math.log10(pv or 1e-50)
-            result[h] = {'diff_mean':mean,'diff_p':p}
-    return result
-
-# use gamma_cdf to adjust diff_p to correct when p_g is low
-def adjust_diff_p(patient_map,hz,gamma_k,gamma_scale):
-    if hz is None:
-        return None
-    # make a matrix of adjust parameters from patient map
-    #gamma_k = len_of_negative_hpo_set / 2
-    adj_m = np.zeros(hz[hz.keys()[0]]['diff_p'].shape)
-    for k,v in patient_map.items():
-        adj_m[k[0]][k[1]] = gamma.cdf(len(v[0]),gamma_k,scale=gamma_scale)
-    for v1 in hz.values():
-        v1['diff_p'] = np.multiply(v1['diff_p'], adj_m)
-    return hz

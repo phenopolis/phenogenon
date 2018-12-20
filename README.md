@@ -1,6 +1,6 @@
 # Phenogenon
 [![Build Status](https://travis-ci.com/phenopolis/phenogenon.svg?branch=master)](https://travis-ci.com/phenopolis/phenogenon)
-
+[![Coverage Status](https://coveralls.io/repos/github/phenopolis/phenogenon/badge.svg?branch=master)](https://coveralls.io/github/phenopolis/phenogenon?branch=master)
 
 Phenogenon is a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction.
 
