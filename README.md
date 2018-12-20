@@ -68,6 +68,7 @@ Explanation of output:
   # 1: very effective; 0: not at all!
   "genon_hratios": {
     "r": {
+      # macular dystrophy
       "HP:0007754": 0.8046670602618868
     },
     "d": {
@@ -78,7 +79,6 @@ Explanation of output:
   # 1: very effective; 0: not at all!
   "genon_vratios": {
     "r": {
-      # macular dystrophy
       "HP:0007754": 0.8851477859029983
     },
     "d": {
@@ -167,7 +167,6 @@ Explanation of output:
     "r": 51,
     "d": 187
   },
-  # genon_sratios: not very relevant!
   "genon_sratios": {
     "r": {
       "HP:0007754": 0.6504054838971388
