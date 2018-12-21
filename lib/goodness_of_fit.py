@@ -100,7 +100,7 @@ class Goodness_of_fit:
             return genon_sum / (genon_sum + S)
         return 1.
 
-    def get_genon_vratio(self,mode,hpo):
+    def get_cadd_15_ratio(self,mode,hpo):
         genon = self.genons[mode][hpo].copy()
         damage_arr = genon[self.damage_cadd_ind:,0]
         weights,pvals = [],[]
@@ -137,11 +137,11 @@ class Goodness_of_fit:
         )
         non_damage_sum = -math.log(S[1])
         if damage_sum:
-            genon_vratio = damage_sum / (damage_sum + non_damage_sum)
+            cadd_15_ratio = damage_sum / (damage_sum + non_damage_sum)
         else:
-            genon_vratio = 0
+            cadd_15_ratio = 0
 
-        return genon_vratio
+        return cadd_15_ratio
 
     def get_pop_curse_flag(self,mode,hpo):
         '''
@@ -202,7 +202,7 @@ class Goodness_of_fit:
 
 
     @property
-    def predicted_moi(self):
+    def MOI_score(self):
         '''
         predict inheritance mode
         return a number.
@@ -211,7 +211,7 @@ class Goodness_of_fit:
         Note that sometimes number of patients in 'r' mode is 0
         In this case it still returns 'd'
         '''
-        if getattr(self,'_predicted_moi', None) is None:
+        if getattr(self,'_MOI_score', None) is None:
             gc = {'r':{},'d':{}}
             vals = {}
             for mode in ('r','d'):
@@ -222,8 +222,8 @@ class Goodness_of_fit:
             for mode in ('r','d'):
                 vals[mode] = max(gc[mode].values() or [0])
             moi = vals['r'] - vals['d']
-            self._predicted_moi = moi
-        return self._predicted_moi
+            self._MOI_score = moi
+        return self._MOI_score
 
     @property
     def positive_hpos(self):
@@ -284,14 +284,14 @@ class Goodness_of_fit:
         return self._genon_sratios
 
     @property
-    def genon_vratios(self):
-        if getattr(self, '_genon_vratios', None) is None:
-            genon_vratios = {'r':{},'d':{}}
+    def cadd_15_ratios(self):
+        if getattr(self, '_cadd_15_ratios', None) is None:
+            cadd_15_ratios = {'r':{},'d':{}}
             for mode in ('r','d'):
                 for hpo in self.positive_hpos[mode]:
-                    genon_vratios[mode][hpo] = self.get_genon_vratio(mode,hpo)
-            self._genon_vratios = genon_vratios
-        return self._genon_vratios
+                    cadd_15_ratios[mode][hpo] = self.get_cadd_15_ratio(mode,hpo)
+            self._cadd_15_ratios = cadd_15_ratios
+        return self._cadd_15_ratios
 
     @property
     def pop_curse_flags(self):
@@ -341,10 +341,10 @@ def get_hgf(**kwargs):
     # get result
     for k in (
            'pop_curse_flags',
-           'genon_hratios',
-           'genon_vratios',
-           'genon_sratios',
-           'predicted_moi',
+           #'genon_hratios',
+           'cadd_15_ratios',
+           #'genon_sratios',
+           'MOI_score',
             ):
        result[k] = getattr(P,k)
 

@@ -64,20 +64,9 @@ Explanation of output:
 ```python
 {
   # "r": recessive moi, "d": dominant moi
-  # genon_hratios [0,1] look at how effective (relatively) rare variants (<0.00025) contribute to hgf
+  # cadd_15_ratio [0,1] look at how effective (relatively) variants with CADD phred score >=15 contribute to hgf
   # 1: very effective; 0: not at all!
-  "genon_hratios": {
-    "r": {
-      # macular dystrophy
-      "HP:0007754": 0.8046670602618868
-    },
-    "d": {
-      "HP:0007754": 0.7483526819524269
-    }
-  },
-  # genon_vratios [0,1] look at how effective (relatively) variants with CADD phred score >=15 contribute to hgf
-  # 1: very effective; 0: not at all!
-  "genon_vratios": {
+  "cadd_15_ratio": {
     "r": {
       "HP:0007754": 0.8851477859029983
     },
@@ -85,8 +74,8 @@ Explanation of output:
       "HP:0007754": 0.9594599287088905
     }
   },
-  # predicted_moi > 0: recessive; predicted_moi < 0: dominant
-  "predicted_moi": 0.8872573775123538,
+  # MOI_score > 0: recessive; MOI_score < 0: dominant
+  "MOI_score": 0.8872573775123538,
 
   # pop_curse_flags look at per moi per HPO level.
   # it reports if certain POP specific variants are predominantly enriched in a group with moi/HPO
@@ -166,14 +155,6 @@ Explanation of output:
   "NP": {
     "r": 51,
     "d": 187
-  },
-  "genon_sratios": {
-    "r": {
-      "HP:0007754": 0.6504054838971388
-    },
-    "d": {
-      "HP:0007754": 0.4616437948047774
-    }
   }
 }
 ```
@@ -184,16 +165,7 @@ python2 lib/goodness_of_fit.py  --range 2:166845571-166930215  --vcf_file tests/
 Explain output:
 ```python
 {
-  "genon_hratios": {
-    "r": {
-      "HP:0012103": 0.6495896553144325,
-      "HP:0001250": 0.6003084981520842
-    },
-    "d": {
-      "HP:0001250": 0.9849814538418481
-    }
-  },
-  "genon_vratios": {
+  "cadd_15_ratio": {
     "r": {
       "HP:0012103": 0,
       "HP:0001250": 1
@@ -202,8 +174,8 @@ Explain output:
       "HP:0001250": 0.9860913529587728
     }
   },
-  # dominant moi, predicted_moi < 0
-  "predicted_moi": -67.76587193983218,
+  # dominant moi, MOI_score < 0
+  "MOI_score": -67.76587193983218,
   "pop_curse_flags": {
     "r": {},
     "d": {}
@@ -221,15 +193,6 @@ Explain output:
   "NP": {
     "r": 11,
     "d": 108
-  },
-  "genon_sratios": {
-    "r": {
-      "HP:0012103": 1,
-      "HP:0001250": 0.6302347842816498
-    },
-    "d": {
-      "HP:0001250": 0.9287994478280903
-    }
   }
 }
 ```
