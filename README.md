@@ -2,6 +2,8 @@
 [![Build Status](https://travis-ci.com/phenopolis/phenogenon.svg?branch=master)](https://travis-ci.com/phenopolis/phenogenon)
 [![Coverage Status](https://coveralls.io/repos/github/phenopolis/phenogenon/badge.svg?branch=master)](https://coveralls.io/github/phenopolis/phenogenon?branch=master)
 
+Preprint available on [biorxiv](https://www.biorxiv.org/content/early/2018/07/11/367292).
+
 Phenogenon is a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction.
 
 Given:
@@ -19,7 +21,7 @@ Additionally, it accurately infers mode of inheritance (moi), such as:
 * recessive mode of inheritance in the case of the "ABCA4 – Macular dystrophy"
 * dominant mode of inheritance with the "SCN1A – Seizures" relationship."
 
-You can read our preprint here: https://www.biorxiv.org/content/early/2018/07/11/367292
+
 
 
 # Installation
