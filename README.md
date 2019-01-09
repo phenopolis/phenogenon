@@ -24,40 +24,50 @@ Additionally, it accurately infers mode of inheritance (moi), such as:
 
 
 
-# Installation
+## Installation
 
 
-## Standalone
+### Standalone
 External programs you need to install:
 * tabix
 * bcftools
 
-```
-pip install -r requirements.txt
-```
-
-### Docker
-
-Make sure you have docker running.
-The following will build and run docker image with all the dependencies.
-
-Build docker image.
-```
-bash build-docker.sh
-```
-Run docker:
-```
-bash run-docker.sh
+```bash
+python setup.py install
 ```
 
-# Running Phenogenon
+#### Docker
 
-## Input
-On the command line,  it needs two inputs:
-- `--range`: a genomic range (e.g. `1:94458394-94586689`)
-- `--vcf_file`: a bgzipped and [tabix](http://www.htslib.org/doc/tabix.html) indexed vcf file
+It is also possible to run Phenogenon with Docker
 
-The genomic range is usually a gene, which can be retrieved from an ensembl gtf file.  
+```bash
+# After starting the docker daemon:
+docker pull phenopolis/phenogenon:latest
+docker run -v $(pwd -P):/phenogenon -it phenogenon:latest bash
+```
+
+You can also build a docker image from this repository with the following command:
+
+```bash
+docker build -t phenogenon .
+```
+
+## Running Phenogenon
+
+Running `phenogenon -h` will display the following help text
+
+```bash
+$ phenogenon -h
+Usage: phenogenon [options] arg1 arg2
+
+Options:
+  -h, --help           show this help message and exit
+  --output=OUTPUT      output file name?
+  --vcf_file=VCF_FILE  bgzipped and tabix-indexed vcf.gz
+  --range=RANGE        genome range to calculate? e.g. 2:4000-6000
+```
+
+The genomic range is usually a gene, which can be retrieved from an ensembl gtf file.
 **Note** please use human reference build version b37, as this is the version supported by both `gnomAD` (gnomAD now also supports hg38) and `CADD`.
 
 The vcf file should include all the samples that would be tested in Phenogenon. In order to index the file, please ensure it is sorted by both chromosomes and locations.
@@ -65,18 +75,19 @@ The vcf file should include all the samples that would be tested in Phenogenon. 
 bgzip -c 1.vcf > 1.vcf.gz && tabix -p vcf 1.vcf.gz
 ```
 
-## Config file
+### Config file
 Parameters of Phenogenon are set in `configure.cfg` in the root folder.
 It has detailed explanations in comments.
 
-## Output
-Run tests:
-```
+### Output
+Run Unit test:
+```bash
 coverage run --omit=*/site-packages/*,*/tests/* -m unittest discover -s tests
 ```
-Example:
-```
-python2 lib/goodness_of_fit.py  --range 1:94458394-94586689 --vcf_file tests/data/ABCA4.anonymised.vcf.gz --output ABCA4.test.json
+
+##### Example of using Phenogenon:
+```bash
+phenogenon  --range 1:94458394-94586689 --vcf_file tests/data/ABCA4.anonymised.vcf.gz --output ABCA4.test.json
 ```
 Produces `ABCA4.test.json`.
 
@@ -178,9 +189,10 @@ Explanation of output:
   }
 }
 ```
-Example 2:
-```
-python2 lib/goodness_of_fit.py  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymised.vcf.gz --output SCN1A.test.json
+
+##### Another example of using Phenogenon:
+```bash
+phenogenon  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymised.vcf.gz --output SCN1A.test.json
 ```
 Explain output:
 ```python
