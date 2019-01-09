@@ -13,3 +13,5 @@ tests/data/unnecessary
 build/*
 dist/*
 phenogenon.egg-info/*
+*json
+.coverage
