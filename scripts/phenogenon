@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+from __future__ import print_function, division
+import sys
+from optparse import OptionParser
+import warnings
+import json
+import os
+import math
+import copy
+import numpy as np
+from collections import defaultdict,Counter
+from scipy import stats
+
+from phenogenon import goodness_of_fit as goodness_of_fit
+from phenogenon import gnomad_utils
+from phenogenon import helper
+from phenogenon import phenogenon as Pheno
+
+if __name__ == '__main__':
+    # in the end some of the args have to go to the config
+    usage = "usage: %prog [options] arg1 arg2"
+    parser = OptionParser(usage=usage)
+
+    parser.add_option("--output",
+                      dest="output",
+                      help="output file name?")
+
+    parser.add_option("--vcf_file",
+                      dest="vcf_file",
+                      help="bgzipped and tabix-indexed vcf.gz")
+
+    parser.add_option("--range",
+                      dest="range",
+                      help="genome range to calculate? e.g. 2:4000-6000")
+    (options, args) = parser.parse_args()
+    if os.path.isfile(options.output):
+        print('File already exists')
+        sys.exit()
+    args = dict(
+        range = options.range,
+        vcf_file = options.vcf_file,
+    )
+    # update args with commons.cfg
+    args.update(helper.OFFLINE_CONFIG['generic'])
+    args.update(helper.OFFLINE_CONFIG['phenogenon'])
+    args['N'] = args.pop('n')
+
+    # get result and write to output
+    result = goodness_of_fit.main(**args)
+    with open(options.output, 'wt') as outf:
+        json.dump(result, outf)
+    print('==done==')
