@@ -58,13 +58,16 @@ Running `phenogenon -h` will display the following help text
 
 ```bash
 $ phenogenon -h
-Usage: phenogenon [options] arg1 arg2
+Usage: phenogenon [options] --vcf_file [FILE] --range [CHR:START-END] --output [FILE]
 
 Options:
-  -h, --help           show this help message and exit
-  --output=OUTPUT      output file name?
-  --vcf_file=VCF_FILE  bgzipped and tabix-indexed vcf.gz
-  --range=RANGE        genome range to calculate? e.g. 2:4000-6000
+  -h, --help            show this help message and exit
+  --output=OUTPUT       The path to the output file
+  --vcf_file=VCF_FILE   The path to the input VCF file (must be bgzipped and
+                        tabix-indexed)
+  --range=RANGE         Genome location of gene to analyse e.g. 2:4000-6000
+  --config_file=CONFIG_FILE
+                        The path to the config file
 ```
 
 The genomic range is usually a gene, which can be retrieved from an ensembl gtf file.

@@ -18,21 +18,35 @@ from phenogenon import phenogenon as Pheno
 
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
-    usage = "usage: %prog [options] arg1 arg2"
+    usage = "Usage: %prog [options] --vcf_file [FILE] --range [CHR:START-END] --output [FILE]"
     parser = OptionParser(usage=usage)
 
     parser.add_option("--output",
                       dest="output",
-                      help="output file name?")
+                      help="The path to the output file")
 
     parser.add_option("--vcf_file",
                       dest="vcf_file",
-                      help="bgzipped and tabix-indexed vcf.gz")
+                      help="The path to the input VCF file (must be bgzipped and tabix-indexed)")
 
     parser.add_option("--range",
                       dest="range",
-                      help="genome range to calculate? e.g. 2:4000-6000")
+                      help="Genome location of gene to analyse e.g. 2:4000-6000")
+
+    parser.add_option("--config_file",
+                      dest="config_file",
+                      default='configure.cfg',
+                      help="The path to the config file")
+
     (options, args) = parser.parse_args()
+
+    if not options.vcf_file:
+        parser.error('A VCF file is required for analysis (use `phenogenon --vcf_file /path/to/file`)')
+    if not options.range:
+        parser.error('A Genomic location is required for the analysis (use `phenogenon --range CHR:START-END`)')
+    if not options.output:
+        parser.error('A output file needs to be specified')
+
     if os.path.isfile(options.output):
         print('File already exists')
         sys.exit()
@@ -41,6 +55,7 @@ if __name__ == '__main__':
         vcf_file = options.vcf_file,
     )
     # update args with commons.cfg
+    helper.CONFIG_FILE = args.config_file
     args.update(helper.OFFLINE_CONFIG['generic'])
     args.update(helper.OFFLINE_CONFIG['phenogenon'])
     args['N'] = args.pop('n')
