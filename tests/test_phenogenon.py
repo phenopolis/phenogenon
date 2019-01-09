@@ -129,7 +129,7 @@ class PhenogenonTestCase(unittest.TestCase):
 
     def test_phenogenon(self):
         # it tests patients_variants and patient_map at the same time
-        import phenogenon
+        from phenogenon import phenogenon
         # ABCA4
         gene = 'ABCA4'
         self.input_options.update(dict(
@@ -154,7 +154,7 @@ class PhenogenonTestCase(unittest.TestCase):
         C(result, expected, self.epsilon)
 
     def test_hgf(self):
-        import goodness_of_fit
+        from phenogenon import goodness_of_fit
         # ABCA4 1:94458394-94586689
         gene = 'ABCA4'
         self.input_options.update(dict(
