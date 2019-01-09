@@ -6,7 +6,7 @@ import filecmp
 import json
 import gzip
 import numpy as np
-sys.path.append('lib')
+sys.path.append('phenogenon')
 import helper
 
 # 'ABCA4':'1:94458394-94586689'
