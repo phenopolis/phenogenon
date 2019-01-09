@@ -55,12 +55,10 @@ def clean_variant(v):
 '''
 parse config file, and make config global. If test, set DB_HOST as 'localhost'
 '''
-
 def _parse_config():
     # return {'section':{'key1':'value1'...},...}
     config = ConfigParser.ConfigParser()
-
-    config.read('configure.cfg')
+    config.read(CONFIG_FILE)
     result = {}
     for section in config.sections():
         options = config.options(section)
@@ -87,7 +85,7 @@ def _parse_config():
             result[section][option] = value
     return result
 
-
+CONFIG_FILE = 'configure.cfg'
 OFFLINE_CONFIG = _parse_config()
 # log to file
 logging.basicConfig(filename=OFFLINE_CONFIG['debug']['log_file'],
