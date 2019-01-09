@@ -52,6 +52,24 @@ bash run-docker.sh
 
 # Running Phenogenon
 
+## Input
+On the command line,  it needs two inputs:
+- `--range`: a genomic range (e.g. `1:94458394-94586689`)
+- `--vcf_file`: a bgzipped and [tabix](http://www.htslib.org/doc/tabix.html) indexed vcf file
+
+The genomic range is usually a gene, which can be retrieved from an ensembl gtf file.  
+**Note** please use human reference build version b37, as this is the version supported by both `gnomAD` (gnomAD now also supports hg38) and `CADD`.
+
+The vcf file should include all the samples that would be tested in Phenogenon. In order to index the file, please ensure it is sorted by both chromosomes and locations.
+```
+bgzip -c 1.vcf > 1.vcf.gz && tabix -p vcf 1.vcf.gz
+```
+
+## Config file
+Parameters of Phenogenon are set in `configure.cfg` in the root folder.
+It has detailed explanations in comments.
+
+## Output
 Run tests:
 ```
 coverage run --omit=*/site-packages/*,*/tests/* -m unittest discover -s tests
