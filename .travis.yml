@@ -20,10 +20,9 @@ install:
   - export PATH=$WORKDIR/test_bin:$PATH
   - bcftools --version
   - tabix --version
-  - pip install -r requirements.txt
+  - python setup.py install
   - pip install coveralls
 script:
-  # command to run coveralls (test coverage) and run tests
   - coverage run --omit=*/site-packages/*,*/tests/* -m unittest discover -s tests
 after_success:
   coveralls
