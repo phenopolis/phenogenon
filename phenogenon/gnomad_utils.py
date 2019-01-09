@@ -2,7 +2,6 @@ from __future__ import print_function, division
 import sys
 import pysam
 import os
-sys.path.append('lib')
 import helper
 
 class BadVariantException(Exception): pass
