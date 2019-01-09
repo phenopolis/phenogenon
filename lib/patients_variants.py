@@ -243,7 +243,6 @@ def main(**kwargs):
         'gnomad_path',
         'cadd_step',
         'cadd_min',
-        'genon_sum_cutoff_coefficient',
         'cis_gap',
         }
     helper.check_args(compulsory_keys, kwargs, 'main')
@@ -300,7 +299,6 @@ def main(**kwargs):
         # no variants, continue
         return None
 
-    'genon_sum_cutoff_coefficient',
     genotype_df,cover_df,gnomad_freqs = vcf_dfs
     # then get patients_variants, with variants annotated with
     #  gnomad freqs and cadd

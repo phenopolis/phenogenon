@@ -52,7 +52,6 @@ def main(**kwargs):
         'gnomad_path',
         'cadd_step',
         'cadd_min',
-        'genon_sum_cutoff_coefficient',
         'cis_gap',
     }
     helper.check_args(compulsory_keys, kwargs, 'main')
