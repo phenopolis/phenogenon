@@ -56,6 +56,7 @@ class PhenogenonTestCase(unittest.TestCase):
             gtf='tests/data/ABCA4_SCN1A.GRCh37.75.gtf.gz',
             exon_padding=5,
             vcf_file='',
+            minimal_output=True,
             cadd_file='tests/data/CADD_ABCA4_SCN1A.vcf.gz',
             patient_info_file='tests/data/test_patients_hpo_snapshot.tsv',
             hpo_json='tests/data/new-hpo-hpo.json',
@@ -159,22 +160,32 @@ class PhenogenonTestCase(unittest.TestCase):
         self.input_options.update(dict(
             vcf_file='tests/data/ABCA4.anonymised.vcf.gz',
             range=self.genes[gene],
+            minimal_output=True,
         ))
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/ABCA4.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
+        self.input_options['minimal_output'] = False
+        result = goodness_of_fit.main(**self.input_options)
+        with open('tests/data/ABCA4.maxoutput.hgf.json', 'wt') as outf:
+            json.dump(result, outf)
 
         # SCN1A 2:166845671-166984524
         gene = 'SCN1A'
         self.input_options.update(dict(
             vcf_file='tests/data/SCN1A.anonymised.vcf.gz',
             range=self.genes[gene],
+            minimal_output=True,
         ))
         result = goodness_of_fit.main(**self.input_options)
         with open('tests/data/SCN1A.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
+        self.input_options['minimal_output'] = False
+        result = goodness_of_fit.main(**self.input_options)
+        with open('tests/data/SCN1A.maxoutput.hgf.json', 'wt') as outf:
+            json.dump(result, outf)
 
 
 if __name__ == '__main__':

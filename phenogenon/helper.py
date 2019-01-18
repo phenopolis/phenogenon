@@ -91,26 +91,11 @@ OFFLINE_CONFIG = _parse_config()
 logging.basicConfig(filename=OFFLINE_CONFIG['debug']['log_file'],
                     level=getattr(logging, OFFLINE_CONFIG['debug']['log_level'].upper()))
 
-
 '''
-some hpo ids are obsolete
-this is a copy of lookups.py's replace_hpo. lookups.py is not working atm
+translate HPO ids to terms, and explicitly express MOI
 '''
-
-
-def replace_hpo(hpo_db, hpo):
-    # some hpo_ids are obsolete.
-    record = hpo_db.hpo.find_one({'id': hpo[0]})
-    if not record:
-        print('no record in replace_hpo')
-        print(hpo)
-    if 'replaced_by' in record:
-        new = hpo_db.hpo.find_one({'id': record['replaced_by'][0]})
-        return [new['id'][0], new['name'][0]]
-    else:
-        return hpo
-
-
+def max_output(result, hpo_db, trans):
+    return {trans.get(k,k): max_output(v,hpo_db, trans) if isinstance(v, dict) else v for k,v in result.items()}
 '''
 get all ancestor nodes of a given hpo_id.
 '''
@@ -161,7 +146,7 @@ get Ph for all HPO terms
 '''
 def get_phs(p_info):
     result = Counter()
-    for k,v in p_info.items():
+    for v in p_info.values():
         result.update(v['hpo'])
     return result
 
@@ -287,7 +272,6 @@ def remove_batch_artefacts(data, bad_vs, patient_mini, mode='all'):
             #'gene_id':data['gene_id'],
             #'pat_a':data['pat_a'],
             }
-    bad_p = []
     for k1,v1 in data['patients'].items():
         cohort = patient_mini[k1]['contact']
         this_bad_vs = []
@@ -410,7 +394,7 @@ def get_patient_map(**kwargs):
         for j in range(len(kwargs['gnomad_steps'])-1):
             args['gr'] = (kwargs['gnomad_steps'][j], kwargs['gnomad_steps'][j+1])
             args['cr'] = (kwargs['cadd_steps'][i], kwargs['cadd_steps'][i+1])
-            p,narrow_vs,not_covered_patients = get_patients(**args)
+            p,_,not_covered_patients = get_patients(**args)
             patient_map[(i,j)] = (p,not_covered_patients)
     return patient_map
 
@@ -494,7 +478,6 @@ def get_patients(**kwargs):
                     other.append(i)
             # remove hom in other, as hom in other renders the variants in good unnecessary
             other = [k1 for k1,v1 in Counter(other).items() if v1 == 1]
-            r_bad = [] # for removing linked variants
             if len(good) and len(good+other) > 1:
                 pos = [int(i.split('-')[1]) for i in good+other]
                 if (len(pos) > len(set(pos))) or (max(pos) - min(pos) > kwargs['cis_gap']):
@@ -539,7 +522,6 @@ def phenogenon(**kwargs):
         len(set(shape1)),
         len(set(shape2))
         ) )
-    gamma_weights = logp_df.copy()
     for k,v in kwargs['patient_map'].items():
         p_a = len(raw_p_a - set(v[1]))
         p_h = len(raw_p_h - set(v[1]))

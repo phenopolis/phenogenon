@@ -23,6 +23,9 @@ class Goodness_of_fit:
                 if type(self.genons[mode][hpo]) is not np.ndarray:
                     self.genons[mode][hpo] = np.array(self.genons[mode][hpo])
 
+    def hpo_id_to_name(self, hpo_id):
+        return self.hpo_db
+
     def get_genon_sum(self,mode,hpo):
         genon = self.genons[mode][hpo].copy()
         if self.combine_pvalues_method in ('stouffer','scaled_stouffer'):
@@ -355,7 +358,19 @@ def get_hgf(**kwargs):
                 for k,v in P.hgf[mode].items()
                 if k in P.positive_hpos[mode]
         }
-
+    # translate HPO ids and MOI?
+    if not kwargs['minimal_output']:
+        trans = {
+            k: v['name'][0] for k,v in P.hpo_db.items()
+        }
+        trans.update({'r':'recessive', 'd':'dominant'})
+        result = helper.max_output(result, P.hpo_db, trans)
+        result['MOI'] = 'undef'
+        if result['MOI_score'] > 0:
+            result['MOI'] = 'recessive'
+        elif result['MOI_score'] < 0:
+            result['MOI'] = 'dominant'
+        
     # return result
     return result
 

@@ -8,7 +8,7 @@ import os
 import math
 import copy
 import numpy as np
-from collections import defaultdict,Counter
+from collections import defaultdict, Counter
 from scipy import stats
 
 from phenogenon import goodness_of_fit as goodness_of_fit
@@ -29,6 +29,12 @@ if __name__ == '__main__':
                       dest="vcf_file",
                       help="The path to the input VCF file (must be bgzipped and tabix-indexed)")
 
+    parser.add_option("--minimal_output",
+                      dest="minimal_output",
+                      action="store_true",
+                      default=True,
+                      help="minimise output to only display HPO ids (instead of HPO terms)")
+
     parser.add_option("--range",
                       dest="range",
                       help="Genome location of gene to analyse e.g. 2:4000-6000")
@@ -41,9 +47,11 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
 
     if not options.vcf_file:
-        parser.error('A VCF file is required for analysis (use `phenogenon --vcf_file /path/to/file`)')
+        parser.error(
+            'A VCF file is required for analysis (use `phenogenon --vcf_file /path/to/file`)')
     if not options.range:
-        parser.error('A Genomic location is required for the analysis (use `phenogenon --range CHR:START-END`)')
+        parser.error(
+            'A Genomic location is required for the analysis (use `phenogenon --range CHR:START-END`)')
     if not options.output:
         parser.error('A output file needs to be specified')
 
@@ -51,8 +59,9 @@ if __name__ == '__main__':
         print('File already exists')
         sys.exit()
     args = dict(
-        range = options.range,
-        vcf_file = options.vcf_file,
+        range=options.range,
+        vcf_file=options.vcf_file,
+        minimal_output=options.minimal_output,
     )
     # update args with commons.cfg
     helper.CONFIG_FILE = args.config_file
