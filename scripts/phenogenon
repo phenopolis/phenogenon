@@ -64,7 +64,7 @@ if __name__ == '__main__':
         minimal_output=options.minimal_output,
     )
     # update args with commons.cfg
-    helper.CONFIG_FILE = args.config_file
+    helper.CONFIG_FILE = options.config_file
     args.update(helper.OFFLINE_CONFIG['generic'])
     args.update(helper.OFFLINE_CONFIG['phenogenon'])
     args['N'] = args.pop('n')
