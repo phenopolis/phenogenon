@@ -168,8 +168,9 @@ class PhenogenonTestCase(unittest.TestCase):
         C(result, expected, self.epsilon)
         self.input_options['minimal_output'] = False
         result = goodness_of_fit.main(**self.input_options)
-        with open('tests/data/ABCA4.maxoutput.hgf.json', 'wt') as outf:
-            json.dump(result, outf)
+        with open('tests/data/ABCA4.maxoutput.hgf.json', 'rt') as inf:
+            expected = json.load(inf)
+        C(result, expected, self.epsilon)
 
         # SCN1A 2:166845671-166984524
         gene = 'SCN1A'
@@ -184,8 +185,9 @@ class PhenogenonTestCase(unittest.TestCase):
         C(result, expected, self.epsilon)
         self.input_options['minimal_output'] = False
         result = goodness_of_fit.main(**self.input_options)
-        with open('tests/data/SCN1A.maxoutput.hgf.json', 'wt') as outf:
-            json.dump(result, outf)
+        with open('tests/data/SCN1A.maxoutput.hgf.json', 'rt') as inf:
+            expected = json.load(inf)
+        C(result, expected, self.epsilon)
 
 
 if __name__ == '__main__':
