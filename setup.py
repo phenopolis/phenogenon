@@ -11,12 +11,9 @@ setup(name='phenogenon',
       license='MIT',
       packages=find_packages(),
       scripts=glob('./scripts/*'),
-      install_requires=['pymongo==3.4.0',
-                        'biopython==1.68',
-                        'pyliftover==0.3',
-                        'bs4==0.0.1',
-                        'scipy==0.19.0',
-                        'pandas==0.20.2',
-                        'pysam==0.11.2.2',
-                        'fisher==0.1.5',]
+      install_requires=['fisher==0.1.5',
+                        'numpy==1.16.0',
+                        'pandas==0.23.4',
+                        'pysam==0.15.2',
+                        'scipy==1.1.0']
 )
