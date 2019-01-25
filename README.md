@@ -97,8 +97,22 @@ Produces `ABCA4.test.json`.
 Explanation of output:
 ```python
 {
+  ##################
+  # primary result #
+  ##################
   # "recessive": recessive moi, "dominant": dominant moi
-  # cadd_15_ratio [0,1] look at how effective (relatively) variants with CADD phred score >=15 contribute to hgf
+  # this is the goodness_of_fit score. It only reports HPOs that are most relevant.
+  "hgf": {
+    "recessive": {
+      "Macular dystrophy": 10.293977466877369
+    },
+    "dominant": {
+      "Macular dystrophy": 12.581133080136787
+    }
+  },
+  # We found that cadd_15_ratio [0,1] correlates age of onset.
+  # The closer cadd_15_ratio is to 1, the more likely the HPO is early onset.
+  # In essence, it looks at how effective (relatively) variants with CADD phred score >=15 contribute to hgf
   # 1: very effective; 0: not at all!
   "cadd_15_ratio": {
     "recessive": {
@@ -108,10 +122,14 @@ Explanation of output:
       "Macular dystrophy": 0.9594599287088905
     }
   },
+  # Mode of inheritance, derived from MOI_score
+  "MOI": "recessive",
   # MOI_score > 0: recessive; MOI_score < 0: dominant
   "MOI_score": 0.8872573775123538,
-  "MOI": "recessive",
 
+  ##########################
+  # Supportive information #
+  ##########################
   # pop_curse_flags look at per moi per HPO level.
   # it reports if certain POP specific variants are predominantly enriched in a group with moi/HPO
   "pop_curse_flags": {
@@ -141,17 +159,8 @@ Explanation of output:
       "Abnormality of metabolism/homeostasis": ["OTH"]
     }
   },
-  # this is the goodness_of_fit score. It only reports HPOs that are most relevant.
-  "hgf": {
-    "recessive": {
-      "Macular dystrophy": 10.293977466877369
-    },
-    "dominant": {
-      "Macular dystrophy": 12.581133080136787
-    }
-  },
   # number of patients found to carry at least two variants ("recessive") and at least one variant ("dominant")
-  "NP": {
+  "number_of_patients": {
     "recessive": 51,
     "dominant": 187
   }
@@ -165,21 +174,6 @@ phenogenon  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymise
 Explain output:
 ```python
 {
-  "cadd_15_ratio": {
-    "recessive": {
-      "Abnormality of the mitochondrion": 0,
-      "Seizures": 1
-    },
-    "dominant": {
-      "Seizures": 0.9860913529587728
-    }
-  },
-  # dominant moi, MOI_score < 0
-  "MOI_score": -67.76587193983218,
-  "pop_curse_flags": {
-    "recessive": {},
-    "dominant": {}
-  },
   "hgf": {
     "recessive": {
       "Abnormality of the mitochondrion": 1.2849541828056956,
@@ -190,7 +184,23 @@ Explain output:
       "Seizures": 74.66686039643339
     }
   },
-  "NP": {
+   "MOI": "dominant",
+
+  "cadd_15_ratio": {
+    "recessive": {
+      "Abnormality of the mitochondrion": 0,
+      "Seizures": 1
+    },
+    "dominant": {
+      "Seizures": 0.9860913529587728
+    }
+  },
+  "MOI_score": -67.76587193983218,
+  "pop_curse_flags": {
+    "recessive": {},
+    "dominant": {}
+  },
+  "number_of_patients": {
     "recessive": 11,
     "dominant": 108
   }
