@@ -370,7 +370,7 @@ def get_hgf(**kwargs):
             result['MOI'] = 'recessive'
         elif result['MOI_score'] < 0:
             result['MOI'] = 'dominant'
-        
+        result['number_of_patients'] = result.pop('NP')
     # return result
     return result
 
