@@ -1,7 +1,7 @@
 {
   "MOI_score": 0.8872573775090515,
   "MOI": "recessive",
-  "pop_curse_flags": {
+  "pop_alert": {
     "recessive": {
       "Abnormality of blood and blood-forming tissues": [
         "AFR"

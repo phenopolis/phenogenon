@@ -146,7 +146,7 @@ class Goodness_of_fit:
 
         return cadd_15_ratio
 
-    def get_pop_curse_flag(self,mode,hpo):
+    def get_pop_alert(self,mode,hpo):
         '''
         get pop cursed?
         return the cursed pop, or None
@@ -260,7 +260,7 @@ class Goodness_of_fit:
             for mode in ('r','d'):
                 for hpo in self.genons[mode]:
                     # is it pop cursed?
-                    pop = self.pop_curse_flags[mode].get(hpo, None)
+                    pop = self.pop_alert[mode].get(hpo, None)
                     if not pop or set(pop) == set(['NFE']):
                         hgf[mode][hpo] = self.get_genon_sum(mode,hpo)
             self._hgf = hgf
@@ -297,16 +297,16 @@ class Goodness_of_fit:
         return self._cadd_15_ratios
 
     @property
-    def pop_curse_flags(self):
-        if getattr(self, '_pop_curse_flags', None) is None:
-            pop_curse_flags = {'r':{},'d':{}}
+    def pop_alert(self):
+        if getattr(self, '_pop_alert', None) is None:
+            pop_alert = {'r':{},'d':{}}
             for mode in ('r','d'):
                 for hpo in self.genons[mode]:
-                    this = self.get_pop_curse_flag(mode,hpo)
+                    this = self.get_pop_alert(mode,hpo)
                     if this is not None:
-                        pop_curse_flags[mode][hpo] = this
-            self._pop_curse_flags = pop_curse_flags
-        return self._pop_curse_flags
+                        pop_alert[mode][hpo] = this
+            self._pop_alert = pop_alert
+        return self._pop_alert
 
 def get_hpo_from_json(f):
     '''
@@ -343,7 +343,7 @@ def get_hgf(**kwargs):
 
     # get result
     for k in (
-           'pop_curse_flags',
+           'pop_alert',
            #'genon_hratios',
            'cadd_15_ratios',
            #'genon_sratios',

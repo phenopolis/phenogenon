@@ -130,9 +130,9 @@ Explanation of output:
   ##########################
   # Supportive information #
   ##########################
-  # pop_curse_flags look at per moi per HPO level.
+  # pop_alert look at per moi per HPO level.
   # it reports if certain POP specific variants are predominantly enriched in a group with moi/HPO
-  "pop_curse_flags": {
+  "pop_alert": {
     "recessive": {
       # e.g. we found patients with recessive/HP:0004329 tend to carry variants v1,v2,v3,v4
       # and v1,v2,v3,v4 seem to have a Jewish descent (inferred from gnomad), it then raises a 
@@ -180,7 +180,6 @@ Explain output:
       "Seizures": 2.514407022516984
     },
     "dominant": {
-      # seizures
       "Seizures": 74.66686039643339
     }
   },
@@ -196,7 +195,7 @@ Explain output:
     }
   },
   "MOI_score": -67.76587193983218,
-  "pop_curse_flags": {
+  "pop_alert": {
     "recessive": {},
     "dominant": {}
   },

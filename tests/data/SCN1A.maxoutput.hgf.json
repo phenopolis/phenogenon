@@ -1,7 +1,7 @@
 {
   "MOI_score": -67.76587193985085,
   "MOI": "dominant",
-  "pop_curse_flags": {
+  "pop_alert": {
     "recessive": {},
     "dominant": {}
   },
