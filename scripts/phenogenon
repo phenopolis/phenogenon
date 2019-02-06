@@ -2,17 +2,10 @@
 from __future__ import print_function, division
 import sys
 from optparse import OptionParser
-import warnings
 import json
 import os
-import math
-import copy
-import numpy as np
-from collections import defaultdict, Counter
-from scipy import stats
 
 from phenogenon import goodness_of_fit as goodness_of_fit
-from phenogenon import gnomad_utils
 from phenogenon import helper
 from phenogenon import phenogenon as Pheno
 
