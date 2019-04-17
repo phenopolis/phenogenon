@@ -19,43 +19,50 @@ import pandas as pd
 from scipy.stats import ttest_1samp, binom, gamma
 import subprocess
 import pysam
-import sys
 import math
 import fisher
 
-'''
-constants
-'''
+
+# constants
 VALID_CHROMOSOMES = [str(i) for i in range(1, 23)] + ['X', 'Y']
 
 
 def mkdir_p(path):
+    '''
+    Mimic mkdir -p
+    '''
     try:
         os.makedirs(path)
-    except OSError as exc: 
+    except OSError as exc:
         if exc.errno == errno.EEXIST and os.path.isdir(path):
             pass
 
-def clean_variant(v):
-    chrom,pos,ref,alt = v.split('-')
+def clean_variant(variant):
+    '''
+    A simple implementation to normalise variant
+    '''
+    chrom, pos, ref, alt = variant.split('-')
     pos = int(pos)
     if len(ref) < len(alt):
         ran = range(len(ref))
     else:
         ran = range(len(alt))
     # insert
-    for e in ran:
-        ref_e = len(ref) - e - 1
-        alt_e = len(alt) - e - 1
-        if ref[ref_e] != alt[alt_e]: break
-    for b in ran:
-        if ref[b] != alt[b] or len(ref[b:ref_e+1]) == 1 or len(alt[b:alt_e+1]) == 1:
+    for end in ran:
+        ref_e = len(ref) - end - 1
+        alt_e = len(alt) - end - 1
+        if ref[ref_e] != alt[alt_e]:
             break
-    return '-'.join([chrom,str(pos+b),ref[b:ref_e+1],alt[b:alt_e+1]])
-'''
-parse config file, and make config global. If test, set DB_HOST as 'localhost'
-'''
+    for begin in ran:
+        if ref[begin] != alt[begin] or len(ref[begin:ref_e+1]) == 1 or len(alt[begin:alt_e+1]) == 1:
+            break
+    return '-'.join([chrom, str(pos+begin), ref[begin:ref_e+1], alt[begin:alt_e+1]])
+
+
 def _parse_config():
+    '''
+    parse config file, and make config global. If test, set DB_HOST as 'localhost'
+    '''
     # return {'section':{'key1':'value1'...},...}
     config = ConfigParser.ConfigParser()
     config.read(CONFIG_FILE)
@@ -91,40 +98,43 @@ OFFLINE_CONFIG = _parse_config()
 logging.basicConfig(filename=OFFLINE_CONFIG['debug']['log_file'],
                     level=getattr(logging, OFFLINE_CONFIG['debug']['log_level'].upper()))
 
-'''
-translate HPO ids to terms, and explicitly express MOI
-'''
+
 def max_output(result, hpo_db, trans):
-    return {trans.get(k,k): max_output(v,hpo_db, trans) if isinstance(v, dict) else v for k,v in result.items()}
-'''
-get all ancestor nodes of a given hpo_id.
-'''
+    '''
+    translate HPO ids to terms, and explicitly express MOI
+    '''
+    return {
+        trans.get(k, k): max_output(v, hpo_db, trans) \
+            if isinstance(v, dict) else v for k, v in result.items()
+        }
+
 def get_hpo_ancestors(hpo_db, hpo_id):
     """
     Get HPO terms higher up in the hierarchy.
     """
-    h=hpo_db[hpo_id]
+    h = hpo_db[hpo_id]
     #print(hpo_id,h)
     if 'replaced_by' in h:
         # not primary id, replace with primary id and try again
         h = hpo_db[h['replaced_by'][0]]
-    hpo=[h]
-    if 'is_a' not in h: return hpo
+    hpo = [h]
+    if 'is_a' not in h:
+        return hpo
     for hpo_parent_id in h['is_a']:
         #p=hpo_db.hpo.find({'id':hpo_parent_id}):
-        hpo+=list(itertools.chain(get_hpo_ancestors(hpo_db,hpo_parent_id)))
+        hpo += list(itertools.chain(get_hpo_ancestors(hpo_db, hpo_parent_id)))
     #remove duplicates
-    hpo={h['id'][0]:h for h in hpo}.values()
+    hpo = {h['id'][0]:h for h in hpo}.values()
     return hpo
 
-'''
-minimise a list of hpos
-'''
-def hpo_minimum_set(hpo_db, hpo_ids=[]):
+
+def hpo_minimum_set(hpo_db, hpo_ids=None):
     '''
     minimize the hpo sets
     results = {'HP:0000505': [ancestors]}
     '''
+    if hpo_ids is None:
+        hpo_ids = []
     hpo_ids = list(set(hpo_ids))
     results = dict([(hpo_id, [h['id'][0] for h in get_hpo_ancestors(
         hpo_db, hpo_id)],) for hpo_id in hpo_ids])
@@ -141,56 +151,63 @@ def hpo_minimum_set(hpo_db, hpo_ids=[]):
                 bad_ids.append(hpo_ids[j])
     return list(set(hpo_ids) - set(bad_ids))
 
-'''
-get Ph for all HPO terms
-'''
+
 def get_phs(p_info):
+    '''
+    get Ph for all HPO terms
+    '''
     result = Counter()
-    for v in p_info.values():
-        result.update(v['hpo'])
+    for val in p_info.values():
+        result.update(val['hpo'])
     return result
 
-'''
-iter through string separated by \n
-'''
+
 def split_iter(string):
+    '''
+    iter through string separated by \n
+    '''
     return (x.group(0) for x in re.finditer(r"[^\n]+", string))
 
-'''
-get patient hpo terms as a dict
-'''
+
 def get_snapshot(f):
+    '''
+    get patient hpo terms as a dict
+    '''
     dt = {}
-    with open(f,'r') as inf:
+    with open(f, 'r') as inf:
         for row in inf:
-            if row[0] == '#': continue
+            if row[0] == '#':
+                continue
             row = row.rstrip().split('\t')
-            if row[1] == '0': continue
+            if row[1] == '0':
+                continue
             dt[row[0]] = {
-                    'hpo': row[2].split(','),
-                    'contact': row[3],
+                'hpo': row[2].split(','),
+                'contact': row[3],
             }
     return dt
-'''
-check compulsory args
-'''
+
 def check_args(compulsory_keys, kwargs, func):
+    '''
+    check compulsory args
+    '''
     # a function to check args
     missing = compulsory_keys - set(kwargs.keys())
     if missing:
         raise KeyError("missing keys for {}: {}".format(func, ', '.join(missing)))
 
-'''
-get artefact variants
-'''
+
 def get_batch_artefacts(**kwargs):
+    '''
+    get artefact variants
+    '''
     # check compulsory args
     compulsory_args = {
-            'data', # the genotype data
-            'patient_mini', # the phenotype data,
-                            #with cohort id encoded in contact
-        }
-    check_args(compulsory_args,kwargs,'get_batch_artefacts')
+        'data', # the genotype data
+        'patient_mini', # the phenotype data,
+                        #with cohort id encoded in contact
+    }
+    check_args(compulsory_args, kwargs, 'get_batch_artefacts')
     # set some default
     # lower_bound is there to remove cohorts where there is just one patient
     # zero_gnomad_c_cutoff allows max internal count when gnomad_af is 0
@@ -204,11 +221,11 @@ def get_batch_artefacts(**kwargs):
     # suspicious variants by looking at gnomad population af
     #
     optional = dict(
-            lower_bound = 2,
-            zero_gnomad_c_cutoff = 2,
-            binom_cutoff = 1e-4,
-            )
-    for k,v in optional.items():
+        lower_bound = 2,
+        zero_gnomad_c_cutoff = 2,
+        binom_cutoff = 1e-4,
+    )
+    for k, v in optional.items():
         kwargs.setdefault(k, v)
 
     # dt_d: for each cohort, each variant's appearance freq, dominance mode
@@ -216,25 +233,25 @@ def get_batch_artefacts(**kwargs):
     dt_d = defaultdict(Counter)
     dt_r = defaultdict(Counter)
     cohorts = Counter()
-    for k,v in kwargs['data']['patients'].items():
-        cohorts[ kwargs['patient_mini'][k]['contact'] ] += 1
+    for k, v in kwargs['data']['patients'].items():
+        cohorts[kwargs['patient_mini'][k]['contact']] += 1
         vc = Counter(v)
         for i in vc:
-            dt_d[ kwargs['patient_mini'][k]['contact'] ][i] += 1
+            dt_d[kwargs['patient_mini'][k]['contact']][i] += 1
             if vc[i] > 1:
-                dt_r[ kwargs['patient_mini'][k]['contact'] ][i] += 1
+                dt_r[kwargs['patient_mini'][k]['contact']][i] += 1
     # remove cohorts with count lower than lower_bound
     for k in cohorts.keys():
         if cohorts[k] < kwargs['lower_bound']:
             del cohorts[k]
-            dt_d.pop(k,None)
-            dt_r.pop(k,None)
+            dt_d.pop(k, None)
+            dt_r.pop(k, None)
 
     # for heterozygous variants
     result_d = defaultdict(list)
-    for k1,v1 in dt_d.items():
+    for k1, v1 in dt_d.items():
         n_variants = len(v1)
-        for k2,v2 in v1.items():
+        for k2, v2 in v1.items():
             if not kwargs['data']['variants'][k2]['gnomad_af']:
                 if v2 > kwargs['zero_gnomad_c_cutoff']:
                     result_d[k1].append(k2)
@@ -247,9 +264,9 @@ def get_batch_artefacts(**kwargs):
 
     # for homozygous variants
     result_r = defaultdict(list)
-    for k1,v1 in dt_r.items():
+    for k1, v1 in dt_r.items():
         n_variants = len(v1)
-        for k2,v2 in v1.items():
+        for k2, v2 in v1.items():
             if not kwargs['data']['variants'][k2]['gnomad_hom_f']:
                 if v2 > kwargs['zero_gnomad_c_cutoff']:
                     result_r[k1].append(k2)
@@ -260,19 +277,19 @@ def get_batch_artefacts(**kwargs):
                 result_r[k1].append(k2)
     for k in result_r:
         result_r[k] = set(result_r[k])
-    return {'d':result_d,'r':result_r}
+    return {'d':result_d, 'r':result_r}
 
 '''
 remove batch specific artefact variants
 '''
 def remove_batch_artefacts(data, bad_vs, patient_mini, mode='all'):
     result = {
-            'patients':{},
-            'variants':data['variants'],
-            #'gene_id':data['gene_id'],
-            #'pat_a':data['pat_a'],
-            }
-    for k1,v1 in data['patients'].items():
+        'patients':{},
+        'variants':data['variants'],
+        #'gene_id':data['gene_id'],
+        #'pat_a':data['pat_a'],
+    }
+    for k1, v1 in data['patients'].items():
         cohort = patient_mini[k1]['contact']
         this_bad_vs = []
         # collect het artefacts
@@ -317,7 +334,7 @@ def remove_noncoding(data, params):
     ncv = set()
     for v in data['variants']:
         nc = True
-        chrom,pos,ref,_ = v.split('-')
+        chrom, pos, ref, _ = v.split('-')
         start = int(pos)
         stop = start + len(ref) - 1
         #start and end overlaps with any exons?
@@ -325,7 +342,7 @@ def remove_noncoding(data, params):
             if exon['start'] > stop:
                 break
             # overlap?
-            if len(ref) + exon['len'] > max(exon['stop'],stop) - min(exon['start'],start) + 1:
+            if len(ref) + exon['len'] > max(exon['stop'], stop) - min(exon['start'], start) + 1:
                 nc = False
                 break
         if nc:
@@ -347,20 +364,20 @@ Not good for getting random variants
 '''
 def add_cadd(**kwargs):
     compulsory_args = {
-            'variants',
-            'chrom',
-            'start',
-            'stop',
-            'cadd_file',
-            }
-    check_args(compulsory_args,kwargs,'add_cadd')
+        'variants',
+        'chrom',
+        'start',
+        'stop',
+        'cadd_file',
+    }
+    check_args(compulsory_args, kwargs, 'add_cadd')
     # get grange for tabix
     grange = '{chrom}:{start}-{stop}'.format(**kwargs)
     # get the correct cadd file
     cadd_file = kwargs['cadd_file'].format(kwargs['chrom'])
     # get cadd
     result = {i:None for i in kwargs['variants']}
-    cadd_file = subprocess.check_output(('tabix',cadd_file,grange))
+    cadd_file = subprocess.check_output(('tabix', cadd_file, grange))
     for row in split_iter(cadd_file):
         row = row.rstrip().split('\t')
         v_id = '-'.join(row[:4])
@@ -374,16 +391,16 @@ for LI profiling
 '''
 def get_patient_map(**kwargs):
     compulsory_args = {
-            'data',
-            'vcf',
-            'mode',
-            'gnomad_steps',
-            'cadd_steps',
-            }
+        'data',
+        'vcf',
+        'mode',
+        'gnomad_steps',
+        'cadd_steps',
+    }
     check_args(compulsory_args, kwargs, 'get_patient_map')
     # if phase is provided, ignore cis_gap.
     # cis_gap has to be provided if no phase
-    if not {'phase','cis_gap'} - set(kwargs.keys()):
+    if not {'phase', 'cis_gap'} - set(kwargs.keys()):
         msg = 'get_patient_map needs at least one argument \
                 from (phase, cis_gap)'
         raise KeyError(msg)
@@ -394,8 +411,8 @@ def get_patient_map(**kwargs):
         for j in range(len(kwargs['gnomad_steps'])-1):
             args['gr'] = (kwargs['gnomad_steps'][j], kwargs['gnomad_steps'][j+1])
             args['cr'] = (kwargs['cadd_steps'][i], kwargs['cadd_steps'][i+1])
-            p,_,not_covered_patients = get_patients(**args)
-            patient_map[(i,j)] = (p,not_covered_patients)
+            p, _, not_covered_patients = get_patients(**args)
+            patient_map[(i, j)] = (p, not_covered_patients)
     return patient_map
 
 '''
@@ -406,24 +423,24 @@ first variant
 '''
 def get_variants(**kwargs):
     compulsory_args = {
-            'variants',
-            'mode',
-            'gr',
-            'cr',
-            }
+        'variants',
+        'mode',
+        'gr',
+        'cr',
+    }
     check_args(compulsory_args, kwargs, 'get_variants')
-    mode_dict = {'r':'gnomad_hom_f','d':'gnomad_af'}
-    narrow_vs = (k for k,v in kwargs['variants'].items()
-            if kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]]<kwargs['gr'][1]
-            and kwargs['cr'][0] <= v['cadd']<kwargs['cr'][1]
-            )
+    mode_dict = {'r':'gnomad_hom_f', 'd':'gnomad_af'}
+    narrow_vs = (k for k, v in kwargs['variants'].items()
+        if kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
+        and kwargs['cr'][0] <= v['cadd'] < kwargs['cr'][1]
+    )
     broad_vs = tuple()
     if kwargs['mode'] == 'r':
-        broad_vs = (k for k,v in kwargs['variants'].items()
-                if v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
-                and v['cadd'] >= kwargs['cr'][0]
-                )
-    return (set(narrow_vs),set(broad_vs))
+        broad_vs = (k for k, v in kwargs['variants'].items()
+            if v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
+            and v['cadd'] >= kwargs['cr'][0]
+        )
+    return (set(narrow_vs), set(broad_vs))
 
 '''
 first find valid variants, and then look at vcf to get covered individuals. return matching patients, and also uncovered patients to correct both p_a and p_h

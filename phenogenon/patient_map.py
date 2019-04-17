@@ -5,15 +5,8 @@ For each gene, test each HPO with P_h >= N (N default 100),
   as negative set
 '''
 from __future__ import print_function, division
-import sys
-import os
-import json
-from collections import defaultdict, Counter
 import itertools
-import copy
-import pandas as pd
 import numpy as np
-from optparse import OptionParser
 import patients_variants as PV
 import helper
 

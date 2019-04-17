@@ -5,9 +5,8 @@ import warnings
 import json
 import os
 import math
-import copy
 import numpy as np
-from collections import defaultdict,Counter
+from collections import Counter
 from scipy import stats
 import gnomad_utils
 import helper
@@ -15,20 +14,20 @@ import phenogenon as Pheno
 
 
 class Goodness_of_fit:
-    def __init__(self,genons):
+    def __init__(self, genons):
         self.genons = genons
         # convert genons to np array
-        for mode in ('r','d'):
+        for mode in ('r', 'd'):
             for hpo in self.genons[mode]:
-                if type(self.genons[mode][hpo]) is not np.ndarray:
+                if not isinstance(self.genons[mode][hpo], np.ndarray):
                     self.genons[mode][hpo] = np.array(self.genons[mode][hpo])
 
-    def hpo_id_to_name(self, hpo_id):
-        return self.hpo_db
-
-    def get_genon_sum(self,mode,hpo):
+    def get_genon_sum(self, mode, hpo):
+        '''
+        get HGF
+        '''
         genon = self.genons[mode][hpo].copy()
-        if self.combine_pvalues_method in ('stouffer','scaled_stouffer'):
+        if self.combine_pvalues_method in ('stouffer', 'scaled_stouffer'):
             # convert all genon > 0.5 to 0.5 to stablise stouffer's
             # performance
             # not needed if using fisher
@@ -40,43 +39,49 @@ class Goodness_of_fit:
         # use stouffer or fisher method to combine p values,
         # with weights for different cadd
         # weights only applicable to stouffer
-        weights, pvals = [],[]
-        for ind,val in enumerate(genon[:,0]):
+        weights, pvals = [], []
+        for ind, val in enumerate(genon[:, 0]):
             if not np.isnan(val):
                 weights.append(
-                        self.stouffer_weights[ind]
+                    self.stouffer_weights[ind]
                 )
                 pvals.append(val)
         genon_sum = None
         if len(pvals):
             combine_test = combine_pvalues(
-                    pvalues = pvals,
-                    method = self.combine_pvalues_method,
-                    weights = weights
+                pvalues=pvals,
+                method=self.combine_pvalues_method,
+                weights=weights
             )
-            genon_sum =  -math.log(combine_test[1] or sys.float_info.epsilon)
+            genon_sum = -math.log(combine_test[1] or sys.float_info.epsilon)
         return genon_sum
 
-    def get_genon_sratio(self,mode,hpo):
+    def get_genon_sratio(self, mode, hpo):
+        '''
+        return genon_sratio. The lower, the more 'noise' comes from non-rare part of the heatmap
+        '''
         genon = self.genons[mode][hpo]
-        log_transform = lambda x:x if np.isnan(x) else -math.log(x)
+        log_transform = lambda x: x if np.isnan(x) else -math.log(x)
         log_transform = np.vectorize(log_transform)
-        rare = genon[:,0][~np.isnan(genon[:,0])]
-        log_rare = sum(log_transform(rare))# / len(rare)
-        rest = genon[:,1:][~np.isnan(genon[:,1:])]
+        rare = genon[:, 0][~np.isnan(genon[:, 0])]
+        log_rare = sum(log_transform(rare))
+        rest = genon[:, 1:][~np.isnan(genon[:, 1:])]
         if len(rest):
-            log_rest = sum(log_transform(rest))# / len(rest)
-            genon_sratio = log_rare / (log_rare+log_rest)
+            log_rest = sum(log_transform(rest))
+            if log_rare+log_rest == 0:
+                genon_sratio = 0
+            else:
+                genon_sratio = log_rare / (log_rare+log_rest)
         else:
             genon_sratio = 1.
         return genon_sratio
 
-    def get_genon_hratio(self,mode,hpo):
+    def get_genon_hratio(self, mode, hpo):
         genon_sum = self.hgf[mode][hpo]
         if not genon_sum:
             return None
         genon = self.genons[mode][hpo].copy()
-        if self.combine_pvalues_method in ('stouffer','scaled_stouffer'):
+        if self.combine_pvalues_method in ('stouffer', 'scaled_stouffer'):
             # convert all genon > 0.5 to 0.5 to stablise stouffer's
             # performance
             # not needed if using fisher
@@ -85,58 +90,57 @@ class Goodness_of_fit:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 genon[genon > 0.5] = 0.5
-        weights, pvals = [],[]
-        for ind,i in enumerate(genon[:,1:]):
+        weights, pvals = [], []
+        for ind, i in enumerate(genon[:, 1:]):
             for j in i:
                 if not np.isnan(j):
                     weights.append(
-                            self.stouffer_weights[ind]
+                        self.stouffer_weights[ind]
                     )
                     pvals.append(j)
         if len(pvals):
             stouffer = combine_pvalues(
-                    pvalues = pvals,
-                    method = self.combine_pvalues_method,
-                    weights = weights
+                pvalues=pvals,
+                method=self.combine_pvalues_method,
+                weights=weights
             )
             S = -math.log(stouffer[1])
             return genon_sum / (genon_sum + S)
         return 1.
 
-    def get_cadd_15_ratio(self,mode,hpo):
+    def get_cadd_15_ratio(self, mode, hpo):
         genon = self.genons[mode][hpo].copy()
-        damage_arr = genon[self.damage_cadd_ind:,0]
-        weights,pvals = [],[]
-        for ind,val in enumerate(damage_arr):
+        damage_arr = genon[self.damage_cadd_ind:, 0]
+        weights, pvals = [], []
+        for ind, val in enumerate(damage_arr):
             if not np.isnan(val):
                 weights.append(
-                        self.stouffer_weights[self.damage_cadd_ind + ind]
+                    self.stouffer_weights[self.damage_cadd_ind + ind]
                 )
                 pvals.append(val)
         if len(pvals) == 0:
             return 0.
         S = combine_pvalues(
-                pvalues = pvals,
-                method = 'fisher',
-                weights = weights
+            pvalues=pvals,
+            method='fisher',
+            weights=weights
         )
         damage_sum = -math.log(S[1] or sys.float_info.epsilon)
-        non_damage_arr = genon[:self.damage_cadd_ind,0]
+        non_damage_arr = genon[:self.damage_cadd_ind, 0]
         # note weights are useless here. will remove
-        weights,pvals = [],[]
-        for ind,val in enumerate(non_damage_arr):
+        weights, pvals = [], []
+        for ind, val in enumerate(non_damage_arr):
             if not np.isnan(val):
                 weights.append(
-                        #ind * self.stouffer_weight_slope + 0.5
-                        self.stouffer_weights[ind]
+                    self.stouffer_weights[ind]
                 )
                 pvals.append(val)
         if len(pvals) == 0:
             return 1.
         S = combine_pvalues(
-                pvalues = pvals,
-                method = 'fisher',
-                weights = weights
+            pvalues=pvals,
+            method='fisher',
+            weights=weights
         )
         non_damage_sum = -math.log(S[1])
         if damage_sum:
@@ -146,16 +150,16 @@ class Goodness_of_fit:
 
         return cadd_15_ratio
 
-    def get_pop_alert(self,mode,hpo):
+    def get_pop_alert(self, mode, hpo):
         '''
         get pop cursed?
         return the cursed pop, or None
         '''
         genon = self.genons[mode][hpo]
         # get inds with small p
-        s_p_inds = np.where(genon[:,0] <= self.pop_check_p)[0]
+        s_p_inds = np.where(genon[:, 0] <= self.pop_check_p)[0]
         # get patients, then variants
-        variants = {'pos':[],'neg':[]}
+        variants = {'pos':[], 'neg':[]}
         tp = None
         if mode == 'r':
             tp = 'gnomad_hom_f'
@@ -174,20 +178,23 @@ class Goodness_of_fit:
                 else:
                     curse = 'neg'
                 for v in self.patients_variants['patients'][p]:
-                    A = (self.patients_variants['variants'][v][tp] <  gnomad_cut)
+                    A = (self.patients_variants['variants'][v][tp] < gnomad_cut)
                     B = (cadd_cuts[0] <= \
                             self.patients_variants['variants'][v]['cadd'] < \
                             cadd_cuts[1])
                     if A and B:
                         variants[curse].append(v)
-        pop_curse = {'pos':set(),'neg':set()}
+        pop_curse = {'pos':set(), 'neg':set()}
         if len(variants['pos']) < self.pop_flags[1]:
             # number of variants are too few
             return None
         # annotate variants using gnomad_utils, and find pop curse
         # if pos and neg find same most freq pop, return None
-        gnomad_freqs = gnomad_utils.overall_freqs(variants['pos'] + variants['neg'], self.gnomad_path)
-        for k,v in variants.items():
+        gnomad_freqs = gnomad_utils.overall_freqs(
+            variants['pos'] + variants['neg'],
+            self.gnomad_path
+        )
+        for k, v in variants.items():
             C = Counter()
             for vv in v:
                 C.update(gnomad_freqs[vv]['most_freq_pops'])
@@ -196,7 +203,7 @@ class Goodness_of_fit:
                 pop_curse[k] = set()
                 continue
             most_freq = ([C.most_common(1)[0][0]], C.most_common(1)[0][1])
-            for kk,vv in C.items():
+            for kk, vv in C.items():
                 if vv == most_freq[1]:
                     most_freq[0].append(kk)
             if most_freq[1] / len(v) >= self.pop_flags[0]:
@@ -214,18 +221,15 @@ class Goodness_of_fit:
         Note that sometimes number of patients in 'r' mode is 0
         In this case it still returns 'd'
         '''
-        if getattr(self,'_MOI_score', None) is None:
-            gc = {'r':{},'d':{}}
+        if getattr(self, '_MOI_score', None) is None:
             vals = {}
-            for mode in ('r','d'):
-                # only calculate for positive hpos
-                for hpo in self.positive_hpos[mode]:
-                    gc[mode][hpo] = self.hgf[mode][hpo] * \
-                            self.genon_sratios[mode][hpo]
-            for mode in ('r','d'):
-                vals[mode] = max(gc[mode].values() or [0])
-            moi = vals['r'] - vals['d']
-            self._MOI_score = moi
+            hpos = set(self.positive_hpos['r'] + self.positive_hpos['d'])
+            for hpo in hpos:
+                vals[hpo] = self.hgf['r'][hpo] * \
+                            self.genon_sratios['r'][hpo] - \
+                            self.hgf['d'][hpo] * \
+                            self.genon_sratios['d'][hpo]          
+            self._MOI_score = vals
         return self._MOI_score
 
     @property
@@ -234,20 +238,20 @@ class Goodness_of_fit:
         Get positive hpo sets.
         '''
         if getattr(self, '_positive_hpos', None) is None:
-            ps = {'r':[],'d':[]}
+            ps = {'r':[], 'd':[]}
 
             # get positive hpos and negative hpos
-            for mode in ('r','d'):
+            for mode in ('r', 'd'):
                 not_nan = [i for i in self.hgf[mode].values()
-                        if i is not None]
+                           if i is not None]
                 if len(not_nan):
                     cutf = np.mean(not_nan) + \
                             self.coefficient * \
                             np.std(not_nan)
-                    for k,v in self.hgf[mode].items():
+                    for k, v in self.hgf[mode].items():
                         if v is not None and v > cutf:
                             ps[mode].append(k)
-                    ps[mode] = helper.hpo_minimum_set(self.hpo_db,ps[mode])
+                    ps[mode] = helper.hpo_minimum_set(self.hpo_db, ps[mode])
                 else:
                     ps[mode] = []
             self._positive_hpos = ps
@@ -256,53 +260,53 @@ class Goodness_of_fit:
     @property
     def hgf(self):
         if getattr(self, '_genon_sum', None) is None:
-            hgf = {'r':{},'d':{}}
-            for mode in ('r','d'):
+            hgf = {'r':{}, 'd':{}}
+            for mode in ('r', 'd'):
                 for hpo in self.genons[mode]:
                     # is it pop cursed?
                     pop = self.pop_alert[mode].get(hpo, None)
                     if not pop or set(pop) == set(['NFE']):
-                        hgf[mode][hpo] = self.get_genon_sum(mode,hpo)
+                        hgf[mode][hpo] = self.get_genon_sum(mode, hpo)
             self._hgf = hgf
         return self._hgf
 
     @property
     def genon_hratios(self):
         if getattr(self, '_genon_hratios', None) is None:
-            genon_hratios = {'r':{},'d':{}}
-            for mode in ('r','d'):
+            genon_hratios = {'r':{}, 'd':{}}
+            for mode in ('r', 'd'):
                 for hpo in self.positive_hpos[mode]:
-                    genon_hratios[mode][hpo] = self.get_genon_hratio(mode,hpo)
+                    genon_hratios[mode][hpo] = self.get_genon_hratio(mode, hpo)
             self._genon_hratios = genon_hratios
         return self._genon_hratios
 
     @property
     def genon_sratios(self):
         if getattr(self, '_genon_sratios', None) is None:
-            genon_sratios = {'r':{},'d':{}}
-            for mode in ('r','d'):
-                for hpo in self.positive_hpos[mode]:
-                    genon_sratios[mode][hpo] = self.get_genon_sratio(mode,hpo)
+            genon_sratios = {'r':{}, 'd':{}}
+            for mode in ('r', 'd'):
+                for hpo in self.hgf[mode]:
+                    genon_sratios[mode][hpo] = self.get_genon_sratio(mode, hpo)
             self._genon_sratios = genon_sratios
         return self._genon_sratios
 
     @property
     def cadd_15_ratios(self):
         if getattr(self, '_cadd_15_ratios', None) is None:
-            cadd_15_ratios = {'r':{},'d':{}}
-            for mode in ('r','d'):
+            cadd_15_ratios = {'r':{}, 'd':{}}
+            for mode in ('r', 'd'):
                 for hpo in self.positive_hpos[mode]:
-                    cadd_15_ratios[mode][hpo] = self.get_cadd_15_ratio(mode,hpo)
+                    cadd_15_ratios[mode][hpo] = self.get_cadd_15_ratio(mode, hpo)
             self._cadd_15_ratios = cadd_15_ratios
         return self._cadd_15_ratios
 
     @property
     def pop_alert(self):
         if getattr(self, '_pop_alert', None) is None:
-            pop_alert = {'r':{},'d':{}}
-            for mode in ('r','d'):
+            pop_alert = {'r':{}, 'd':{}}
+            for mode in ('r', 'd'):
                 for hpo in self.genons[mode]:
-                    this = self.get_pop_alert(mode,hpo)
+                    this = self.get_pop_alert(mode, hpo)
                     if this is not None:
                         pop_alert[mode][hpo] = this
             self._pop_alert = pop_alert
@@ -312,8 +316,8 @@ def get_hpo_from_json(f):
     '''
     if remote server is somehow unavailable, use a local json file instead
     '''
-    with open(f,'r') as inf:
-        data = '[' + inf.read().rstrip().replace('\n',',') + ']'
+    with open(f, 'r') as inf:
+        data = '[' + inf.read().rstrip().replace('\n', ',') + ']'
         data = json.loads(data)
     # convert it to a dict
     return {i['id'][0]:i for i in data}
@@ -349,27 +353,30 @@ def get_hgf(**kwargs):
            #'genon_sratios',
            'MOI_score',
             ):
-       result[k] = getattr(P,k)
+       result[k] = getattr(P, k)
 
     # get hgf only for positive HPOs
     result['hgf'] = {}
-    for mode in ('r','d'):
+    for mode in ('r', 'd'):
         result['hgf'][mode] = {k:v
-                for k,v in P.hgf[mode].items()
+                for k, v in P.hgf[mode].items()
                 if k in P.positive_hpos[mode]
         }
     # translate HPO ids and MOI?
     if not kwargs['minimal_output']:
         trans = {
-            k: v['name'][0] for k,v in P.hpo_db.items()
+            k: v['name'][0] for k, v in P.hpo_db.items()
         }
         trans.update({'r':'recessive', 'd':'dominant'})
         result = helper.max_output(result, P.hpo_db, trans)
-        result['MOI'] = 'undef'
-        if result['MOI_score'] > 0:
-            result['MOI'] = 'recessive'
-        elif result['MOI_score'] < 0:
-            result['MOI'] = 'dominant'
+        result['MOI'] = {}
+        for hpo in result['MOI_score']:
+            if result['MOI_score'][hpo] > 0:
+                result['MOI'][hpo] = 'recessive'
+            elif result['MOI_score'][hpo] < 0:
+                result['MOI'][hpo] = 'dominant'
+            else:
+                result['MOI'] = None
         result['number_of_patients'] = result.pop('NP')
     # return result
     return result

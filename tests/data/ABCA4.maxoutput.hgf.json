@@ -1,6 +1,10 @@
 {
-  "MOI_score": 0.8872573775090515,
-  "MOI": "recessive",
+  "MOI_score": {
+    "Macular dystrophy": 0.88725737750905154
+  },
+  "MOI": {
+    "Macular dystrophy": "recessive"
+  },
   "pop_alert": {
     "recessive": {
       "Abnormality of blood and blood-forming tissues": [

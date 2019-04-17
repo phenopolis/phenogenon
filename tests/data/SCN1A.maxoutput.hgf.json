@@ -1,6 +1,12 @@
 {
-  "MOI_score": -67.76587193985085,
-  "MOI": "dominant",
+  "MOI_score": {
+    "Seizures": -67.765871939850854,
+    "Abnormality of the mitochondrion": 1.1730263142769097
+  },
+  "MOI": {
+    "Seizures": "dominant",
+    "Abnormality of the mitochondrion": "recessive"
+  },
   "pop_alert": {
     "recessive": {},
     "dominant": {}

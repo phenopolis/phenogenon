@@ -2,8 +2,6 @@
 Get a heatmap
 '''
 from __future__ import print_function, division
-from optparse import OptionParser
-import json
 import helper
 import patient_map as PM
 
