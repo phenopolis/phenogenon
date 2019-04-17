@@ -1,8 +1,8 @@
+'''
+unit tests
+'''
 import unittest
 import os
-import sys
-import shutil
-import filecmp
 import json
 import gzip
 import numpy as np
@@ -13,6 +13,9 @@ from phenogenon import helper
 
 
 def C(x, y, epsilon):
+    '''
+    a comparison function
+    '''
     if isinstance(x, dict):
         for k in x:
             C(x[k], y[k], epsilon)
@@ -29,6 +32,10 @@ def C(x, y, epsilon):
 
 
 class PhenogenonTestCase(unittest.TestCase):
+    '''
+    test class
+    '''
+
     def setUp(self):
         self.tmp_folder = 'tests/data/tmp'
         # for testing float
@@ -162,12 +169,12 @@ class PhenogenonTestCase(unittest.TestCase):
             range=self.genes[gene],
             minimal_output=True,
         ))
-        result = goodness_of_fit.main(**self.input_options)
+        result = goodness_of_fit.main(**self.input_options)['result']
         with open('tests/data/ABCA4.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
         self.input_options['minimal_output'] = False
-        result = goodness_of_fit.main(**self.input_options)
+        result = goodness_of_fit.main(**self.input_options)['friendly_result']
         with open('tests/data/ABCA4.maxoutput.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
@@ -179,12 +186,12 @@ class PhenogenonTestCase(unittest.TestCase):
             range=self.genes[gene],
             minimal_output=True,
         ))
-        result = goodness_of_fit.main(**self.input_options)
+        result = goodness_of_fit.main(**self.input_options)['result']
         with open('tests/data/SCN1A.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
         self.input_options['minimal_output'] = False
-        result = goodness_of_fit.main(**self.input_options)
+        result = goodness_of_fit.main(**self.input_options)['friendly_result']
         with open('tests/data/SCN1A.maxoutput.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)

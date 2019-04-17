@@ -15,5 +15,7 @@ setup(name='phenogenon',
                         'numpy==1.16.0',
                         'pandas==0.23.4',
                         'pysam==0.15.2',
-                        'scipy==1.1.0']
-)
+                        'scipy==1.1.0',
+                        'plotly==3.8.0',
+                        'psutil==5.6.1']
+      )

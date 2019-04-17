@@ -37,7 +37,11 @@ if __name__ == '__main__':
                       default='configure.cfg',
                       help="The path to the config file")
 
-    (options, args) = parser.parse_args()
+    parser.add_option("--heatmap_outdir",
+                      dest="heatmap_outdir",
+                      help="Phenogenon heatmap output folder. If not specified, won't produce any heatmap")
+
+    (options, _) = parser.parse_args()
 
     if not options.vcf_file:
         parser.error(
@@ -55,6 +59,7 @@ if __name__ == '__main__':
         range=options.range,
         vcf_file=options.vcf_file,
         minimal_output=options.minimal_output,
+        heatmap_outdir=options.heatmap_outdir
     )
     # update args with commons.cfg
     helper.CONFIG_FILE = options.config_file

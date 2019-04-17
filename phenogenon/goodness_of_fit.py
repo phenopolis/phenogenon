@@ -47,7 +47,7 @@ class Goodness_of_fit:
                 )
                 pvals.append(val)
         genon_sum = None
-        if len(pvals):
+        if pvals:
             combine_test = combine_pvalues(
                 pvalues=pvals,
                 method=self.combine_pvalues_method,
@@ -66,7 +66,7 @@ class Goodness_of_fit:
         rare = genon[:, 0][~np.isnan(genon[:, 0])]
         log_rare = sum(log_transform(rare))
         rest = genon[:, 1:][~np.isnan(genon[:, 1:])]
-        if len(rest):
+        if rest.size > 0:
             log_rest = sum(log_transform(rest))
             if log_rare+log_rest == 0:
                 genon_sratio = 0
@@ -363,23 +363,24 @@ def get_hgf(**kwargs):
                 if k in P.positive_hpos[mode]
         }
     # translate HPO ids and MOI?
+    friendly_result = None
     if not kwargs['minimal_output']:
         trans = {
             k: v['name'][0] for k, v in P.hpo_db.items()
         }
         trans.update({'r':'recessive', 'd':'dominant'})
-        result = helper.max_output(result, P.hpo_db, trans)
-        result['MOI'] = {}
-        for hpo in result['MOI_score']:
-            if result['MOI_score'][hpo] > 0:
-                result['MOI'][hpo] = 'recessive'
-            elif result['MOI_score'][hpo] < 0:
-                result['MOI'][hpo] = 'dominant'
+        friendly_result = helper.max_output(result, P.hpo_db, trans)
+        friendly_result['MOI'] = {}
+        for hpo in friendly_result['MOI_score']:
+            if friendly_result['MOI_score'][hpo] > 0:
+                friendly_result['MOI'][hpo] = 'recessive'
+            elif friendly_result['MOI_score'][hpo] < 0:
+                friendly_result['MOI'][hpo] = 'dominant'
             else:
-                result['MOI'] = None
-        result['number_of_patients'] = result.pop('NP')
+                friendly_result['MOI'] = None
+        friendly_result['number_of_patients'] = friendly_result.pop('NP')
     # return result
-    return result
+    return {'result':result,'friendly_result':friendly_result}
 
 def combine_pvalues(pvalues, method='fisher', weights=None):
     '''
@@ -416,6 +417,52 @@ def combine_pvalues(pvalues, method='fisher', weights=None):
         raise ValueError(
             "Invalid method '%s'. Options are 'fisher', 'stouffer' or 'scaled_stouffer", method)
 
+def draw_phenogenon(**kwargs):
+    '''
+    output pdf to visualise phenogenon heatmaps for each hpo/moi
+    '''
+    import itertools
+    import plotly.graph_objs as go
+    import plotly.io as pio
+
+    # log transform p values
+    def log_transform(x): return x if np.isnan(x) else -math.log(x)
+    log_transform = np.vectorize(log_transform)
+
+    for moi in ('r', 'd'):
+        # make folder
+        outdir = os.path.join(kwargs['heatmap_outdir'], moi)
+        helper.mkdir_p(outdir)
+        for hpo in kwargs['hpos'][moi]:
+            data = kwargs['data']['phenogenon'][moi][hpo]
+            # get file name:
+            outfile = os.path.join(
+                outdir, '{}.pdf'.format(hpo.replace(':', '_')))
+            # get zmax
+            zmax = min(kwargs['zmax'], max(
+                list(itertools.chain.from_iterable([i for i in data]))))
+            # get title
+            title = '{}-{}'.format(hpo, 'recessive' if moi
+                                   == 'r' else 'dominant')
+            # get trace
+            trace = {
+                'z': log_transform(data),
+                'x': np.arange(0, kwargs['gnomad_cutoff'], kwargs['gnomad_step']),
+                'y': np.arange(0, 60, kwargs['cadd_step']),
+                'connectgaps': False,
+                'type': 'heatmap',
+                'showscale': True,
+                'zmin': 0,
+                'zauto': False
+            }
+            layout = {
+                'title': title,
+                'xaxis': {'title': 'GF'},
+                'yaxis': {'title': 'CADD_phred'}
+            }
+            fig = go.Figure(data=[trace], layout=layout)
+            pio.write_image(fig, outfile)
+
 def main(**kwargs):
     kwargs['hpo_db'] = get_hpo_from_json(kwargs['hpo_json'])
     # get patient_mini and patient_info
@@ -427,41 +474,47 @@ def main(**kwargs):
     kwargs['patient_map'] = pheno.pop('patient_map')
     kwargs['patients_variants'] = pheno.pop('patients_variants')
     # get hgf
-    return get_hgf(**kwargs)
+    hgf = get_hgf(**kwargs)
+    # produce heatmaps
+    if kwargs.get('heatmap_outdir',None) is not None:
+        kwargs['hpos'] = {'r': hgf['result']['hgf']['r'].keys(), 'd': hgf['result']['hgf']['d'].keys()}
+        draw_phenogenon(**kwargs)
+    return hgf
 
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
-    usage = "usage: %prog [options] arg1 arg2"
-    parser = OptionParser(usage=usage)
+    USAGE = "usage: %prog [options] arg1 arg2"
+    PARSER = OptionParser(usage=USAGE)
 
-    parser.add_option("--output",
+    PARSER.add_option("--output",
                       dest="output",
                       help="output file name?")
 
-    parser.add_option("--vcf_file",
+    PARSER.add_option("--vcf_file",
                       dest="vcf_file",
                       help="bgzipped and tabix-indexed vcf.gz")
 
-    parser.add_option("--range",
+    PARSER.add_option("--range",
                       dest="range",
                       help="genome range to calculate? e.g. 2:4000-6000")
-    (options, args) = parser.parse_args()
-    if os.path.isfile(options.output):
+    
+    (OPTIONS, _) = PARSER.parse_args()
+    if os.path.isfile(OPTIONS.output):
         print('already done')
         sys.exit()
-    args = dict(
-        range = options.range,
-        vcf_file = options.vcf_file,
+    ARGS = dict(
+        range=OPTIONS.range,
+        vcf_file=OPTIONS.vcf_file,
     )
     # update args with commons.cfg
-    args.update(helper.OFFLINE_CONFIG['generic'])
-    args.update(helper.OFFLINE_CONFIG['phenogenon'])
-    args['N'] = args.pop('n')
+    ARGS.update(helper.OFFLINE_CONFIG['generic'])
+    ARGS.update(helper.OFFLINE_CONFIG['phenogenon'])
+    ARGS['N'] = ARGS.pop('n')
 
     # get result and write to output
-    result = main(**args)
-    with open(options.output, 'wt') as outf:
-        json.dump(result, outf)
+    RESULT = main(**ARGS)
+    with open(OPTIONS.output, 'wt') as outf:
+        json.dump(RESULT, outf)
     print('==done==')
 
 
