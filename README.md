@@ -7,6 +7,8 @@ Preprint available on [biorxiv](https://www.biorxiv.org/content/early/2018/07/11
 
 Phenogenon is a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction.
 
+The HGF data published on the 3288 whole exomes can be found in `data/hgf.August.2017.csv`
+
 Given:
 
 - a genotype vcf file (such as `tests/data/ABCA4.anonymised.vcf.gz`)
