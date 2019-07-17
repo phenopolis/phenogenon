@@ -1,0 +1,3 @@
+[submodule "phenogenon/pyhpo"]
+	path = phenogenon/pyhpo
+	url = https://github.com/logust79/pyhpo
