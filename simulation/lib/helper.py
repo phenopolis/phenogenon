@@ -66,6 +66,7 @@ def parse_vcf(vcf_file):
     parse vcf to get interesting stuff
     note that multiallelic are coded in separate lines
     input: a.vcf.gz
+    gnomAd and cadd might be redundent as they will be stored separately
     return: {
         entrez_id: {
             'symbol',
@@ -526,3 +527,21 @@ def is_noncoding(variant, exons):
         if len(ref) + exon['len'] > max(exon['stop'], stop) - min(exon['start'], start) + 1:
             return False
     return True
+
+def simulate_samples(genes, params):
+    '''
+    simulate control, disease, noise samples
+    '''
+    import uuid
+    # get generic, starts with simu_
+    result = [f'simu_{uuid.uuid1()}' for i in range(params['simulation']['control_pool_size'])]
+    # get omim_moi
+    omim_moi = 
+    return result
+
+def get_omim_moi(F):
+    '''
+    from the omim_moi file, get omim moi
+    '''
+    result = {}
+    

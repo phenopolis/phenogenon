@@ -20,7 +20,6 @@ from scipy.stats import ttest_1samp, binom, gamma
 import subprocess
 import pysam
 import math
-import fisher
 
 
 # constants
@@ -518,6 +517,7 @@ def get_patients(**kwargs):
 calculate phenogenon, and return a dataframe
 '''
 def phenogenon(**kwargs):
+    import fisher
     compulsory_args = {
             'hpos',
             'mode',
