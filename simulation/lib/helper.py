@@ -536,12 +536,38 @@ def simulate_samples(genes, params):
     # get generic, starts with simu_
     result = [f'simu_{uuid.uuid1()}' for i in range(params['simulation']['control_pool_size'])]
     # get omim_moi
-    omim_moi = 
+    omim_moi = get_omim_moi(params['simulation']['omim_moi'])
+    # get annotated json
+    with open(params['simulation']['annotated_variants'], 'rt') as inf:
+        annotated = json.load(inf)
+    for gene in annotated:
+        # nominate omim
+        # search from the ones with most number of appearance
+        # then check if they have moi in omim_moi
+        pass
     return result
 
 def get_omim_moi(F):
     '''
     from the omim_moi file, get omim moi
+    take entries with 'AD', 'AR', 'XLD' and 'XLR'
+    one omim term should have just one moi
+    translate XLD/AD to d and XLR/AR to r
     '''
+    moi_map = {
+        'AD': 'd',
+        'AR': 'r',
+        'XLD': 'd',
+        'XLR': 'r',
+        }
     result = {}
-    
+    with open(F, 'rt') as inf:
+        for line in inf:
+            row = line.rstrip('\n').split('\t')
+            if row[1] not in moi_map:
+                continue
+            assert row[0] not in result or result[row[0]] == row[1], print(f'omim term moi not consistent at {row[0]}')
+            result[row[0]] = row[1]
+
+    # translate moi to 'd' or 'r'
+    return {k: moi_map[v] for k, v in result.items()}
