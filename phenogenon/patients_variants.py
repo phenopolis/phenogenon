@@ -87,6 +87,9 @@ def get_patients_variants(**kwargs):
         result['patients'][col].extend(list(this[this==2].index)*2)
     result['variants'] = {i:{
         'gnomad_af':kwargs['gnomad_freqs'][i]['gnomad_af'],
+        'gnomad_an': kwargs['gnomad_freqs'][i]['gnomad_an'],
+        'gnomad_ac': kwargs['gnomad_freqs'][i]['gnomad_ac'],
+        'gnomad_hom_c': kwargs['gnomad_freqs'][i]['gnomad_hom_c'],
         'gnomad_hom_f':kwargs['gnomad_freqs'][i]['gnomad_hom_f'],
         'cadd':None,
         } for i in kwargs['genotype_df'].index}

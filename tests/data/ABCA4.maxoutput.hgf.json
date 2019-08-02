@@ -1,6 +1,6 @@
 {
   "MOI_score": {
-    "Macular dystrophy": 0.88725737750905154
+    "Macular dystrophy": 0.970362277372
   },
   "MOI": {
     "Macular dystrophy": "recessive"
@@ -82,7 +82,7 @@
     }
   },
   "number_of_patients": {
-    "recessive": 51,
+    "recessive": 52,
     "dominant": 187
   }
 }

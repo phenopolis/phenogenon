@@ -16,7 +16,7 @@ from collections import Counter, defaultdict
 import logging
 import numpy as np
 import pandas as pd
-from scipy.stats import ttest_1samp, binom, gamma
+from scipy.stats import ttest_1samp
 import subprocess
 import pysam
 import math
@@ -216,14 +216,14 @@ def get_batch_artefacts(**kwargs):
     # Jewish variants, and found predominantly in SEGAL's cohort,
     # which is known to have many Jews. These variants would significantly
     # contributes to the false positive enrichments.
-    # ideally one would set a lower binom_cutoff, removing those variants
+    # ideally one would set a lower p_cutoff, removing those variants
     # by doing a population study on different cohorts, then remove
     # suspicious variants by looking at gnomad population af
     #
     optional = dict(
         lower_bound = 2,
         zero_gnomad_c_cutoff = 2,
-        binom_cutoff = 1e-4,
+        batch_artefact_p_cutoff = 1e-4,
     )
     for k, v in optional.items():
         kwargs.setdefault(k, v)
@@ -256,8 +256,13 @@ def get_batch_artefacts(**kwargs):
                 if v2 > kwargs['zero_gnomad_c_cutoff']:
                     result_d[k1].append(k2)
                 continue
-            prob = 1 - binom.cdf(v2-1, cohorts[k1], kwargs['data']['variants'][k2]['gnomad_af'])
-            if prob < kwargs['binom_cutoff'] / n_variants:
+            prob = fisher.pvalue(
+                kwargs['data']['variants'][k2]['gnomad_an'],
+                kwargs['data']['variants'][k2]['gnomad_ac'],
+                cohorts[k1],
+                v2
+                ).right_tail
+            if prob < kwargs['batch_artefact_p_cutoff'] / n_variants:
                 result_d[k1].append(k2)
     for k in result_d:
         result_d[k] = set(result_d[k])
@@ -271,8 +276,13 @@ def get_batch_artefacts(**kwargs):
                 if v2 > kwargs['zero_gnomad_c_cutoff']:
                     result_r[k1].append(k2)
                 continue
-            prob = 1 - binom.cdf(v2-1, cohorts[k1], kwargs['data']['variants'][k2]['gnomad_hom_f'])
-            if prob < kwargs['binom_cutoff'] / n_variants:
+            prob = fisher.pvalue(
+                kwargs['data']['variants'][k2]['gnomad_an'] // 2,
+                kwargs['data']['variants'][k2]['gnomad_hom_c'],
+                cohorts[k1],
+                v2
+                ).right_tail
+            if prob < kwargs['batch_artefact_p_cutoff'] / n_variants:
                 #print(k2,prob)
                 result_r[k1].append(k2)
     for k in result_r:

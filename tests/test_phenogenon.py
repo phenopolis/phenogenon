@@ -170,6 +170,7 @@ class PhenogenonTestCase(unittest.TestCase):
             minimal_output=True,
         ))
         result = goodness_of_fit.main(**self.input_options)['result']
+
         with open('tests/data/ABCA4.hgf.json', 'rt') as inf:
             expected = json.load(inf)
         C(result, expected, self.epsilon)
