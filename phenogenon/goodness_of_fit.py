@@ -8,9 +8,8 @@ import math
 import numpy as np
 from collections import Counter
 from scipy import stats
-import gnomad_utils
-import helper
-import phenogenon as Pheno
+from phenogenon import gnomad_utils, helper
+from phenogenon import phenogenon as Pheno
 
 
 class Goodness_of_fit:
@@ -61,17 +60,17 @@ class Goodness_of_fit:
         return genon_sratio. The lower, the more 'noise' comes from non-rare part of the heatmap
         '''
         genon = self.genons[mode][hpo]
-        log_transform = lambda x: x if np.isnan(x) else -math.log(x)
+        def log_transform(x): return x if np.isnan(x) else -math.log(x)
         log_transform = np.vectorize(log_transform)
         rare = genon[:, 0][~np.isnan(genon[:, 0])]
         log_rare = sum(log_transform(rare))
         rest = genon[:, 1:][~np.isnan(genon[:, 1:])]
         if rest.size > 0:
             log_rest = sum(log_transform(rest))
-            if log_rare+log_rest == 0:
+            if log_rare + log_rest == 0:
                 genon_sratio = 0
             else:
-                genon_sratio = log_rare / (log_rare+log_rest)
+                genon_sratio = log_rare / (log_rare + log_rest)
         else:
             genon_sratio = 1.
         return genon_sratio
@@ -159,7 +158,7 @@ class Goodness_of_fit:
         # get inds with small p
         s_p_inds = np.where(genon[:, 0] <= self.pop_check_p)[0]
         # get patients, then variants
-        variants = {'pos':[], 'neg':[]}
+        variants = {'pos': [], 'neg': []}
         tp = None
         if mode == 'r':
             tp = 'gnomad_hom_f'
@@ -170,7 +169,7 @@ class Goodness_of_fit:
             raise ValueError(msg)
         for ind in s_p_inds:
             patients = self.patient_map[mode]["{},0".format(ind)][0]
-            cadd_cuts = (self.cadd_step * ind, self.cadd_step * (ind+1))
+            cadd_cuts = (self.cadd_step * ind, self.cadd_step * (ind + 1))
             gnomad_cut = self.gnomad_step
             for p in patients:
                 if hpo in self.patient_info[p]['hpo']:
@@ -178,13 +177,14 @@ class Goodness_of_fit:
                 else:
                     curse = 'neg'
                 for v in self.patients_variants['patients'][p]:
-                    A = (self.patients_variants['variants'][v][tp] < gnomad_cut)
-                    B = (cadd_cuts[0] <= \
-                            self.patients_variants['variants'][v]['cadd'] < \
-                            cadd_cuts[1])
+                    A = (
+                        self.patients_variants['variants'][v][tp] < gnomad_cut)
+                    B = (cadd_cuts[0] <=
+                         self.patients_variants['variants'][v]['cadd'] <
+                         cadd_cuts[1])
                     if A and B:
                         variants[curse].append(v)
-        pop_curse = {'pos':set(), 'neg':set()}
+        pop_curse = {'pos': set(), 'neg': set()}
         if len(variants['pos']) < self.pop_flags[1]:
             # number of variants are too few
             return None
@@ -210,7 +210,6 @@ class Goodness_of_fit:
                 pop_curse[k] = set(most_freq[0])
         return list(pop_curse['pos'] - pop_curse['neg']) or None
 
-
     @property
     def MOI_score(self):
         '''
@@ -225,10 +224,10 @@ class Goodness_of_fit:
             vals = {}
             hpos = set(self.positive_hpos['r'] + self.positive_hpos['d'])
             for hpo in hpos:
-                vals[hpo] = self.hgf['r'][hpo] * \
-                            self.genon_sratios['r'][hpo] - \
-                            self.hgf['d'][hpo] * \
-                            self.genon_sratios['d'][hpo]          
+                vals[hpo] = self.hgf['r'].get(hpo, 0) * \
+                    self.genon_sratios['r'].get(hpo, 0) - \
+                    self.hgf['d'].get(hpo, 0) * \
+                    self.genon_sratios['d'].get(hpo, 0)
             self._MOI_score = vals
         return self._MOI_score
 
@@ -238,7 +237,7 @@ class Goodness_of_fit:
         Get positive hpo sets.
         '''
         if getattr(self, '_positive_hpos', None) is None:
-            ps = {'r':[], 'd':[]}
+            ps = {'r': [], 'd': []}
 
             # get positive hpos and negative hpos
             for mode in ('r', 'd'):
@@ -246,8 +245,8 @@ class Goodness_of_fit:
                            if i is not None]
                 if len(not_nan):
                     cutf = np.mean(not_nan) + \
-                            self.coefficient * \
-                            np.std(not_nan)
+                        self.coefficient * \
+                        np.std(not_nan)
                     for k, v in self.hgf[mode].items():
                         if v is not None and v > cutf:
                             ps[mode].append(k)
@@ -260,7 +259,7 @@ class Goodness_of_fit:
     @property
     def hgf(self):
         if getattr(self, '_genon_sum', None) is None:
-            hgf = {'r':{}, 'd':{}}
+            hgf = {'r': {}, 'd': {}}
             for mode in ('r', 'd'):
                 for hpo in self.genons[mode]:
                     # is it pop cursed?
@@ -273,7 +272,7 @@ class Goodness_of_fit:
     @property
     def genon_hratios(self):
         if getattr(self, '_genon_hratios', None) is None:
-            genon_hratios = {'r':{}, 'd':{}}
+            genon_hratios = {'r': {}, 'd': {}}
             for mode in ('r', 'd'):
                 for hpo in self.positive_hpos[mode]:
                     genon_hratios[mode][hpo] = self.get_genon_hratio(mode, hpo)
@@ -283,7 +282,7 @@ class Goodness_of_fit:
     @property
     def genon_sratios(self):
         if getattr(self, '_genon_sratios', None) is None:
-            genon_sratios = {'r':{}, 'd':{}}
+            genon_sratios = {'r': {}, 'd': {}}
             for mode in ('r', 'd'):
                 for hpo in self.hgf[mode]:
                     genon_sratios[mode][hpo] = self.get_genon_sratio(mode, hpo)
@@ -293,17 +292,18 @@ class Goodness_of_fit:
     @property
     def cadd_15_ratios(self):
         if getattr(self, '_cadd_15_ratios', None) is None:
-            cadd_15_ratios = {'r':{}, 'd':{}}
+            cadd_15_ratios = {'r': {}, 'd': {}}
             for mode in ('r', 'd'):
                 for hpo in self.positive_hpos[mode]:
-                    cadd_15_ratios[mode][hpo] = self.get_cadd_15_ratio(mode, hpo)
+                    cadd_15_ratios[mode][hpo] = self.get_cadd_15_ratio(
+                        mode, hpo)
             self._cadd_15_ratios = cadd_15_ratios
         return self._cadd_15_ratios
 
     @property
     def pop_alert(self):
         if getattr(self, '_pop_alert', None) is None:
-            pop_alert = {'r':{}, 'd':{}}
+            pop_alert = {'r': {}, 'd': {}}
             for mode in ('r', 'd'):
                 for hpo in self.genons[mode]:
                     this = self.get_pop_alert(mode, hpo)
@@ -311,6 +311,7 @@ class Goodness_of_fit:
                         pop_alert[mode][hpo] = this
             self._pop_alert = pop_alert
         return self._pop_alert
+
 
 def get_hpo_from_json(f):
     '''
@@ -320,11 +321,12 @@ def get_hpo_from_json(f):
         data = '[' + inf.read().rstrip().replace('\n', ',') + ']'
         data = json.loads(data)
     # convert it to a dict
-    return {i['id'][0]:i for i in data}
+    return {i['id'][0]: i for i in data}
+
 
 def get_hgf(**kwargs):
     result = {
-            'NP':kwargs['data']['NP'],
+        'NP': kwargs['data']['NP'],
     }
     P = Goodness_of_fit(kwargs['data']['phenogenon'])
     # set some parameters for hgf
@@ -342,33 +344,33 @@ def get_hgf(**kwargs):
             'cadd_step',
             'gnomad_path',
             'patient_info',
-            ):
+    ):
         setattr(P, k, kwargs[k])
 
     # get result
     for k in (
-           'pop_alert',
-           #'genon_hratios',
-           'cadd_15_ratios',
-           #'genon_sratios',
-           'MOI_score',
-            ):
-       result[k] = getattr(P, k)
+        'pop_alert',
+        # 'genon_hratios',
+        'cadd_15_ratios',
+        # 'genon_sratios',
+        'MOI_score',
+    ):
+        result[k] = getattr(P, k)
 
     # get hgf only for positive HPOs
     result['hgf'] = {}
     for mode in ('r', 'd'):
-        result['hgf'][mode] = {k:v
-                for k, v in P.hgf[mode].items()
-                if k in P.positive_hpos[mode]
-        }
+        result['hgf'][mode] = {k: v
+                               for k, v in P.hgf[mode].items()
+                               if k in P.positive_hpos[mode]
+                               }
     # translate HPO ids and MOI?
     friendly_result = None
     if not kwargs['minimal_output']:
         trans = {
             k: v['name'][0] for k, v in P.hpo_db.items()
         }
-        trans.update({'r':'recessive', 'd':'dominant'})
+        trans.update({'r': 'recessive', 'd': 'dominant'})
         friendly_result = helper.max_output(result, P.hpo_db, trans)
         friendly_result['MOI'] = {}
         for hpo in friendly_result['MOI_score']:
@@ -380,7 +382,8 @@ def get_hgf(**kwargs):
                 friendly_result['MOI'] = None
         friendly_result['number_of_patients'] = friendly_result.pop('NP')
     # return result
-    return {'result':result,'friendly_result':friendly_result}
+    return {'result': result, 'friendly_result': friendly_result}
+
 
 def combine_pvalues(pvalues, method='fisher', weights=None):
     '''
@@ -416,6 +419,7 @@ def combine_pvalues(pvalues, method='fisher', weights=None):
     else:
         raise ValueError(
             "Invalid method '%s'. Options are 'fisher', 'stouffer' or 'scaled_stouffer", method)
+
 
 def draw_phenogenon(**kwargs):
     '''
@@ -463,6 +467,7 @@ def draw_phenogenon(**kwargs):
             fig = go.Figure(data=[trace], layout=layout)
             pio.write_image(fig, outfile)
 
+
 def main(**kwargs):
     kwargs['hpo_db'] = get_hpo_from_json(kwargs['hpo_json'])
     # get patient_mini and patient_info
@@ -476,10 +481,12 @@ def main(**kwargs):
     # get hgf
     hgf = get_hgf(**kwargs)
     # produce heatmaps
-    if kwargs.get('heatmap_outdir',None) is not None:
-        kwargs['hpos'] = {'r': hgf['result']['hgf']['r'].keys(), 'd': hgf['result']['hgf']['d'].keys()}
+    if kwargs.get('heatmap_outdir', None) is not None:
+        kwargs['hpos'] = {'r': hgf['result']['hgf']
+                          ['r'].keys(), 'd': hgf['result']['hgf']['d'].keys()}
         draw_phenogenon(**kwargs)
     return hgf
+
 
 if __name__ == '__main__':
     # in the end some of the args have to go to the config
@@ -497,7 +504,7 @@ if __name__ == '__main__':
     PARSER.add_option("--range",
                       dest="range",
                       help="genome range to calculate? e.g. 2:4000-6000")
-    
+
     (OPTIONS, _) = PARSER.parse_args()
     if os.path.isfile(OPTIONS.output):
         print('already done')
@@ -516,5 +523,3 @@ if __name__ == '__main__':
     with open(OPTIONS.output, 'wt') as outf:
         json.dump(RESULT, outf)
     print('==done==')
-
-

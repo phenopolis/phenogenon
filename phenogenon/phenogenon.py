@@ -2,8 +2,8 @@
 Get a heatmap
 '''
 from __future__ import print_function, division
-import helper
-import patient_map as PM
+from phenogenon import helper
+from phenogenon import patient_map as PM
 
 
 def main(**kwargs):

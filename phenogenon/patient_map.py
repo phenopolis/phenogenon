@@ -7,8 +7,8 @@ For each gene, test each HPO with P_h >= N (N default 100),
 from __future__ import print_function, division
 import itertools
 import numpy as np
-import patients_variants as PV
-import helper
+from phenogenon import patients_variants as PV
+from phenogenon import helper
 
 
 def main(**kwargs):
