@@ -460,13 +460,13 @@ def get_variants(**kwargs):
     check_args(compulsory_args, kwargs, 'get_variants')
     mode_dict = {'r': 'gnomad_hom_f', 'd': 'gnomad_af'}
     narrow_vs = (k for k, v in kwargs['variants'].items()
-                 if kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
+                 if v['cadd'] is not None and kwargs['gr'][0] <= v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
                  and kwargs['cr'][0] <= v['cadd'] < kwargs['cr'][1]
                  )
     broad_vs = tuple()
     if kwargs['mode'] == 'r':
         broad_vs = (k for k, v in kwargs['variants'].items()
-                    if v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
+                    if v['cadd'] is not None and v[mode_dict[kwargs['mode']]] < kwargs['gr'][1]
                     and v['cadd'] >= kwargs['cr'][0]
                     )
     return (set(narrow_vs), set(broad_vs))

@@ -179,7 +179,7 @@ class Goodness_of_fit:
                 for v in self.patients_variants['patients'][p]:
                     A = (
                         self.patients_variants['variants'][v][tp] < gnomad_cut)
-                    B = (cadd_cuts[0] <=
+                    B = (self.patients_variants['variants'][v]['cadd'] is not None and cadd_cuts[0] <=
                          self.patients_variants['variants'][v]['cadd'] <
                          cadd_cuts[1])
                     if A and B:
