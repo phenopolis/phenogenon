@@ -234,3 +234,5 @@ You can opt to draw Phenogenon heatmaps (using plotly as shown in the paper), by
 ```bash
 phenogenon  --range 1:94458394-94586689 --vcf_file tests/data/ABCA4.anonymised.vcf.gz --output ABCA4.test.json --heatmap_outdir output/heatmap/ABCA4
 ```
+
+![alt text](https://raw.githubusercontent.com/phenopolis/phenogenon/master/images/HP_0007754.png)
