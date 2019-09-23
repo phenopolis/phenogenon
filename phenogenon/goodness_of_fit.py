@@ -442,7 +442,7 @@ def draw_phenogenon(**kwargs):
             zmax = min(kwargs['zmax'], max(
                 list(itertools.chain.from_iterable([i for i in data]))))
             # get title
-            title = '{}-{}'.format(hpo, 'recessive' if moi
+            title = '{}-{}'.format(kwargs['hpo_db'][hpo]['name'][0], 'recessive' if moi
                                    == 'r' else 'dominant')
             # get trace
             trace = {
