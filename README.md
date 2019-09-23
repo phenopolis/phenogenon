@@ -5,7 +5,10 @@
 
 Preprint available on [biorxiv](https://www.biorxiv.org/content/early/2018/07/11/367292).
 
-Phenogenon is a method that combines: the power of Human Phenotype Ontology for describing patient phenotypes, gnomAD for estimating rare variant population frequency, and CADD for variant pathogenicity prediction.
+Phenogenon is a method that discover gene to HPO associations from:
+- Human Phenotype Ontology annotated patients
+- gnomAD for estimating rare variant population frequency
+- CADD for variant pathogenicity prediction.
 
 The HGF data published on the 3288 whole exomes can be found in `data/hgf.August.2017.csv`
 
@@ -17,7 +20,7 @@ Given:
 - a CADD score file (such as `tests/data/CADD_ABCA4_SCN1A.vcf.gz`)
 - a patient-hpo file (such as `tests/data/test_patients_hpo_snapshot.tsv`)
 
-Phenogenon is able to uncover true gene to phenotype relations, such as:
+Phenogenon is able to uncover known gene to phenotype relations, such as:
 
 - "ABCA4 – Macular dystrophy"
 - "SCN1A – Seizures".
@@ -105,7 +108,7 @@ phenogenon  --range 1:94458394-94586689 --vcf_file tests/data/ABCA4.anonymised.v
 
 Produces `ABCA4.test.json`.
 
-Explanation of output:
+Explanation of JSON output:
 
 ```python
 {
@@ -114,7 +117,7 @@ Explanation of output:
     # primary result #
     ##################
     # "recessive": recessive moi, "dominant": dominant moi
-    # this is the goodness_of_fit score. It only reports HPOs that are most relevant.
+    # this is the goodness of fit score. It only reports the highest scoring HPOs.
     "hgf": {
       "recessive": {
         "Macular dystrophy": 10.293977466877369
@@ -188,7 +191,7 @@ Explanation of output:
 phenogenon  --range 2:166845571-166930215  --vcf_file tests/data/SCN1A.anonymised.vcf.gz --output SCN1A.test.json
 ```
 
-Explain output:
+Explanation of JSON output:
 
 ```python
 {
