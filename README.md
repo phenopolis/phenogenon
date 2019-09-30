@@ -5,7 +5,10 @@
 
 Preprint available on [biorxiv](https://www.biorxiv.org/content/early/2018/07/11/367292).
 
+Visualisation of top gene-phenotype relations can be found at https://phenogenon.phenopolis.org/
+
 Phenogenon is a method that discover gene to HPO associations from:
+
 - Human Phenotype Ontology annotated patients
 - gnomAD for estimating rare variant population frequency
 - CADD for variant pathogenicity prediction.
